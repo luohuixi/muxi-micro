@@ -39,6 +39,7 @@ func (e *Err) MetaData() map[string]interface{} {
 func (e *Err) Unwrap() error {
 	return e.cause
 }
+
 func (e *Err) Is(target error) bool {
 	var t *Err
 	if errors.As(target, &t) {
