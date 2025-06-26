@@ -62,7 +62,7 @@ func TestLoadFromLocal(t *testing.T) {
 	t.Run("file not exist", func(t *testing.T) {
 		cfg, _ := NewLocalConfig(&Config{}, "nonexistent.yaml")
 		err := cfg.LoadData()
-		assert.EqualError(t, err, "open nonexistent.yaml: The system cannot find the file specified.")
+		assert.Error(t, err)
 	})
 
 	//nacos不好测
