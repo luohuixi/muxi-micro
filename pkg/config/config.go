@@ -1,7 +1,6 @@
 package config
 
 import (
-	"context"
 	"errors"
 	"path/filepath"
 	"reflect"
@@ -17,11 +16,10 @@ import (
 )
 
 type ConfigManager interface {
-	GetData() interface{}                          // 获取配置数据
-	GetErr() error                                 // 获取错误信息
-	PutData()                                      // 本地配置文件不需要，空实现
-	LoadData()                                     // 先加载再获取数据
-	WatchData(ctx context.Context) <-chan struct{} //热更新
+	GetData() interface{}    // 获取配置数据
+	LoadData() error         // 先加载再获取数据
+	WatchData() <-chan error //热更新
+	Close() error            //关闭
 }
 
 // yaml和json部分
@@ -30,7 +28,9 @@ type LocalConfig struct {
 	Lastupdate time.Time
 	Data       interface{} // 传入的配置结构体指针
 	Path       string      // 配置文件路径
-	Err        error       // 统一在这里存放错误
+	Check      int         // 0表示监听未开启，1表示已开启，2表示停止监听，不会再触发热更新操作
+	mu         sync.Mutex
+	ch         chan error //传递更新信号或错误的管道
 }
 
 // c需传入结构体指针，返回接口类型
@@ -43,7 +43,9 @@ func NewLocalConfig(c interface{}, path string) (ConfigManager, error) {
 		Data:       c,
 		Lastupdate: time.Now(),
 		Path:       path,
-		Err:        nil,
+		Check:      0,
+		mu:         sync.Mutex{},
+		ch:         make(chan error),
 	}, nil
 }
 
@@ -51,11 +53,7 @@ func (l *LocalConfig) GetData() interface{} {
 	return l.Data
 }
 
-func (l *LocalConfig) GetErr() error {
-	return l.Err
-}
-
-func (l *LocalConfig) LoadData() {
+func (l *LocalConfig) LoadData() error {
 	l.Viper.SetConfigFile(l.Path)
 
 	// 检查扩展名(支持yaml, json)，如果不是则报错
@@ -66,59 +64,56 @@ func (l *LocalConfig) LoadData() {
 	case ".json":
 		l.Viper.SetConfigType("json")
 	default:
-		l.Err = errors.New("only .yaml, .yml, or .json are supported")
-		return
+		return errors.New("only .yaml, .yml, or .json are supported")
 	}
 
 	// 读取配置文件
 	err := loadData(l)
-	l.Err = err
-
+	return err
 }
 
-// put感觉本地用不到，所以空实现
-func (l *LocalConfig) PutData() {}
-
 // 传回的通道会在配置文件发生变化时发送信号
-func (l *LocalConfig) WatchData(ctx context.Context) <-chan struct{} {
-	ch := make(chan struct{}, 10)
+func (l *LocalConfig) WatchData() <-chan error {
+	// 如果已经监听过就退出，防止开多个协程监听，不将错误传入管道了避免与热更新的错误混淆
+	if l.Check == 1 {
+		return nil
+	}
+	l.Check = 1
 
-	go func() {
-		defer close(ch)
-		l.Viper.WatchConfig()
-		l.Viper.OnConfigChange(func(e fsnotify.Event) {
-			// 不知道为什么会连着调用两次，所以加个时间限制
-			if time.Since(l.Lastupdate) < 1*time.Second {
-				return
-			}
+	l.Viper.OnConfigChange(func(e fsnotify.Event) {
+		l.mu.Lock()
+		defer l.mu.Unlock()
+		// 停止监听就退出
+		if l.Check == 2 {
+			return
+		}
+		// 不知道为什么会连着调用两次，所以加个时间限制
+		if time.Since(l.Lastupdate) < 1*time.Second {
+			return
+		}
+		err := loadData(l)
+		if err != nil {
+			// 热更新时出错
+			l.ch <- err
+			return
+		}
+		// 发送信号通知配置已更新
+		l.ch <- nil
+	})
+	l.Viper.WatchConfig()
 
-			err := loadData(l)
-			if err != nil {
-				// 热更新时出错
-				l.Err = err
-				return
-			}
+	return l.ch
+}
 
-			// 发送信号通知配置已更新
-			select {
-			case ch <- struct{}{}:
-			case <-ctx.Done():
-				// 如果接收到停止信号，则退出
-				return
-			}
-		})
-
-		<-ctx.Done()
-	}()
-
-	return ch
+func (l *LocalConfig) Close() error {
+	close(l.ch)
+	// 停止监听标志
+	l.Check = 2
+	// 感觉没有错误但得和nacos的一致
+	return nil
 }
 
 func loadData(l *LocalConfig) error {
-	var mu sync.Mutex
-	mu.Lock()
-	defer mu.Unlock()
-
 	if err := l.Viper.ReadInConfig(); err != nil {
 		return err
 	}
@@ -138,7 +133,9 @@ type NacosConfig struct {
 	Group  string                      // 配置组
 	Data   string                      // 配置value，获取值时也在这里获取
 	Client config_client.IConfigClient // Nacos客户端
-	Err    error                       // 统一在这里存放错误
+	Check  int
+	ch     chan error
+	mu     sync.Mutex
 }
 
 func NewClientConfig(namespace, username, password string, time uint64) *constant.ClientConfig {
@@ -184,7 +181,9 @@ func NewNacosConfig(dataId, group, content string, clientconfig *constant.Client
 		Group:  group,
 		Data:   content,
 		Client: client,
-		Err:    nil,
+		Check:  0,
+		ch:     make(chan error),
+		mu:     sync.Mutex{},
 	}, nil
 }
 
@@ -192,54 +191,45 @@ func (p *NacosConfig) GetData() interface{} {
 	return p.Data
 }
 
-func (p *NacosConfig) GetErr() error {
-	return p.Err
-}
-
-func (p *NacosConfig) PutData() {
-	_, err := p.Client.PublishConfig(vo.ConfigParam{
-		DataId:  p.DataId,
-		Group:   p.Group,
-		Content: p.Data,
-	})
-	p.Err = err
-}
-
-func (p *NacosConfig) LoadData() {
+func (p *NacosConfig) LoadData() error {
 	content, err := p.Client.GetConfig(vo.ConfigParam{
 		DataId: p.DataId,
 		Group:  p.Group,
 	})
 	if err != nil {
-		p.Err = err
-		return
+		return err
 	}
 	p.Data = content
+	return nil
 }
 
-func (p *NacosConfig) WatchData(ctx context.Context) <-chan struct{} {
-	ch := make(chan struct{}, 10)
-	go func() {
-		defer close(ch)
-		err := p.Client.ListenConfig(vo.ConfigParam{
-			DataId: p.DataId,
-			Group:  p.Group,
-			OnChange: func(namespace, group, dataId, data string) {
-				var mu sync.Mutex
-				mu.Lock()
-				defer mu.Unlock()
-				p.Data = data
-				ch <- struct{}{}
-			},
-		})
-		if err != nil {
-			var mu sync.Mutex
-			mu.Lock()
-			defer mu.Unlock()
-			p.Err = err
-			return
-		}
-		<-ctx.Done()
-	}()
-	return ch
+func (p *NacosConfig) WatchData() <-chan error {
+	if p.Check == 1 {
+		return nil
+	}
+	p.Check = 1
+	err := p.Client.ListenConfig(vo.ConfigParam{
+		DataId: p.DataId,
+		Group:  p.Group,
+		OnChange: func(namespace, group, dataId, data string) {
+			p.mu.Lock()
+			defer p.mu.Unlock()
+			p.Data = data
+			p.ch <- nil
+		},
+	})
+	if err != nil {
+		p.ch <- err
+	}
+	return p.ch
+}
+
+func (p *NacosConfig) Close() error {
+	// nacos提供了专门关闭方法
+	cancelParam := vo.ConfigParam{
+		DataId: p.DataId,
+		Group:  p.Group,
+	}
+	p.Check = 0
+	return p.Client.CancelListenConfig(cancelParam)
 }
