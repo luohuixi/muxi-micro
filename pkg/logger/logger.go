@@ -10,7 +10,52 @@ type Logger interface {
 	Sync() error
 }
 
-type Field interface{}
+type Field struct {
+	Key string
+	Val any
+}
+
+func Any(key string, val any) Field {
+	return Field{
+		Key: key,
+		Val: val,
+	}
+}
+
+func Error(err error) Field {
+	return Field{
+		Key: "error",
+		Val: err,
+	}
+}
+
+func Int64(key string, val int64) Field {
+	return Field{
+		Key: key,
+		Val: val,
+	}
+}
+
+func Int(key string, val int) Field {
+	return Field{
+		Key: key,
+		Val: val,
+	}
+}
+
+func String(key string, val string) Field {
+	return Field{
+		Key: key,
+		Val: val,
+	}
+}
+
+func Int32(key string, val int32) Field {
+	return Field{
+		Key: key,
+		Val: val,
+	}
+}
 
 // ---------- 环境枚举 ----------
 type Env int8
