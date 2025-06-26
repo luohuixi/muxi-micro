@@ -9,96 +9,110 @@ import (
 	"github.com/muxi-Infra/muxi-micro/pkg/config"
 )
 
+type DatabaseConfig struct {
+	MySQL struct {
+		Host     string `yaml:"host"`
+		Port     string `yaml:"port"`
+		Username string `yaml:"username"`
+		Password string `yaml:"password"`
+	} `yaml:"mysql"`
+
+	Redis struct {
+		Host     string `yaml:"host"`
+		Port     string `yaml:"port"`
+		Username string `yaml:"username"`
+		Password string `yaml:"password"`
+		DB       string `yaml:"db"`
+	} `yaml:"redis"`
+}
+
+type Config struct {
+	Database DatabaseConfig `yaml:"database"`
+}
+
 func Local() {
-	c, err := config.LoadFromLocal("config.yaml")
-
-	if err != nil {
+	// 选择本地就newloaclconfig
+	cfg, err := config.NewLocalConfig(&Config{}, "config.yaml")
+	if err != nil { //结构体传入时不用指针就报错
 		log.Fatal(err)
 	}
-
-	m := make(map[string]string, 10)
-	key := "database.mysql.host"
-
-	//统一将值存到哈希
-	value, err := config.GetConfig(c, key)
-	m[key] = value
-
-	if err != nil {
-		log.Fatal(err)
+	// 加载配置
+	cfg.LoadData()
+	// 检查是否有错误
+	if cfg.GetErr() != nil {
+		log.Fatalf("加载配置失败: %v", cfg.GetErr())
 	}
+	// 输出时需要类型断言
+	log.Println(cfg.GetData().(*Config).Database.MySQL.Host)
 
-	log.Println(m[key])
-
-	//ch用于监听热更新信号，stop需在程序结束前手动关闭
+	//ch用于监听热更新信号
 	ctx, cancel := context.WithCancel(context.Background())
-	ch := config.WatchConfig(c, m, ctx)
+	ch := cfg.WatchData(ctx)
 
 	go func() {
 		for range ch {
 			// 用户自定义热更新后的操作
-			log.Println(m[key])
+			log.Println(cfg.GetData().(*Config).Database.MySQL.Host)
 		}
 	}()
+
+	// 热更新出错会直接退出监听并显示错误
+	if cfg.GetErr() != nil {
+		log.Fatalf("热更新出错: %v", cfg.GetErr())
+	}
 
 	time.Sleep(20 * time.Second)
 	cancel() // 停止协程
 }
 
 func Nacos() {
+	// 预先配置
 	c := config.NewClientConfig("public", "nacos", "nacos", 5000)
 	s := config.NewServerConfig([]string{"localhost"}, []uint64{8848})
-	client, err := config.NewNacos(c, s)
+	// 选择nacos就NewNacosConfig
+	cfg, err := config.NewNacosConfig("key3", "1GRUOP", "value6", c, s)
 	if err != nil {
-		log.Fatalf("创建Nacos客户端失败: %v", err)
+		log.Fatal(err)
 	}
-
-	// PUT
-	check := config.NewNacosConfig("key3", "1GRUOP", "value6")
-	err = check.PutToNacos(client)
-	if err != nil {
-		log.Fatalf("发布配置失败: %v", err)
+    // PUT
+	cfg.PutData()
+	if cfg.GetErr() != nil {
+		log.Fatalf("发布配置失败: %v", cfg.GetErr())
 	}
 
 	// GET
-	check = config.NewNacosConfig("key3", "1GRUOP", "")
-	content, err := check.GetFromNacos(client)
-	if err != nil {
-		log.Fatalf("获取配置失败: %v", err)
+	cfg2, _ := config.NewNacosConfig("key3", "1GRUOP", "", c, s)
+	cfg2.LoadData()
+	if cfg2.GetErr() != nil {
+		log.Fatal(cfg2.GetErr())
 	}
-	log.Println("获取到的配置内容:", content)
+	log.Println(cfg2.GetData())
 
 	// 监听
 	ctx, cancel := context.WithCancel(context.Background())
-	check = config.NewNacosConfig("key3", "1GRUOP", "")
-	ch, errch := check.WatchNacos(client, ctx)
+	ch := cfg2.WatchData(ctx)
 	go func() {
-		for data := range ch {
+		for range ch {
 			// 用户自定义热更新后的操作
-			log.Println("配置已更新:", data)
+			log.Println("配置已更新:", cfg2.GetData())
 		}
 	}()
-	go func() {
-		for err := range errch {
-			// 用户自定义错误处理
-			log.Println("监听配置变化时发生错误:", err)
-		}
-	}()
-
 	// 模拟配置变化
 	for i := 0; i < 10; i++ {
 		value := fmt.Sprintf("value%d", i)
-		check := config.NewNacosConfig("key3", "1GRUOP", value)
-		_ = check.PutToNacos(client)
-		time.Sleep(5 * time.Second) 
+		cfg, _ = config.NewNacosConfig("key3", "1GRUOP", value, c, s)
+		cfg.PutData()
+		time.Sleep(5 * time.Second)
+	}
+	// 监听报错处理
+	if cfg2.GetErr() != nil {
+		log.Fatal(cfg2.GetErr())
 	}
 
 	cancel() // 停止协程
 }
 
-func main(){
-	// yaml和json示例
+func main() {
 	Local()
-
-	// Nacos示例
 	//Nacos()
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
+	"reflect"
 	"sync"
 	"time"
 
@@ -15,73 +16,88 @@ import (
 	"github.com/spf13/viper"
 )
 
+type ConfigManager interface {
+	GetData() interface{}                          // 获取配置数据
+	GetErr() error                                 // 获取错误信息
+	PutData()                                      // 本地配置文件不需要，空实现
+	LoadData()                                     // 先加载再获取数据
+	WatchData(ctx context.Context) <-chan struct{} //热更新
+}
+
 // yaml和json部分
-type ConfigManager struct {
-	viper      *viper.Viper
-	configMap  map[string]string
-	mu         sync.RWMutex
-	lastupdate time.Time
+type LocalConfig struct {
+	Viper      *viper.Viper
+	Lastupdate time.Time
+	Data       interface{} // 传入的配置结构体指针
+	Path       string      // 配置文件路径
+	Err        error       // 统一在这里存放错误
 }
 
-func NewConfigManager(v *viper.Viper, c map[string]string) *ConfigManager {
-	return &ConfigManager{
-		viper:      v,
-		configMap:  c,
-		mu:         sync.RWMutex{},
-		lastupdate: time.Now(),
+// c需传入结构体指针，返回接口类型
+func NewLocalConfig(c interface{}, path string) (ConfigManager, error) {
+	if reflect.ValueOf(c).Kind() != reflect.Ptr {
+		return nil, errors.New("config struct must be a pointer")
 	}
+	return &LocalConfig{
+		Viper:      viper.New(),
+		Data:       c,
+		Lastupdate: time.Now(),
+		Path:       path,
+		Err:        nil,
+	}, nil
 }
 
-// 读取配置文件
-func LoadFromLocal(path string) (*viper.Viper, error) {
-	v := viper.New()
+func (l *LocalConfig) GetData() interface{} {
+	return l.Data
+}
 
-	v.SetConfigFile(path)
+func (l *LocalConfig) GetErr() error {
+	return l.Err
+}
+
+func (l *LocalConfig) LoadData() {
+	l.Viper.SetConfigFile(l.Path)
 
 	// 检查扩展名(支持yaml, json)，如果不是则报错
-	ext := filepath.Ext(path)
+	ext := filepath.Ext(l.Path)
 	switch ext {
 	case ".yaml", ".yml":
-		v.SetConfigType("yaml")
+		l.Viper.SetConfigType("yaml")
 	case ".json":
-		v.SetConfigType("json")
+		l.Viper.SetConfigType("json")
 	default:
-		return nil, errors.New("only .yaml, .yml, or .json are supported")
+		l.Err = errors.New("only .yaml, .yml, or .json are supported")
+		return
 	}
 
-	if err := v.ReadInConfig(); err != nil {
-		return nil, err
-	}
+	// 读取配置文件
+	err := loadData(l)
+	l.Err = err
 
-	return v, nil
 }
 
-// 获取配置文件中的某一个的值（如database.mysql.host），值建议存储到哈希方便热更新
-func GetConfig(c *viper.Viper, data string) (string, error) {
-	// 统一返回string类型，后面按需类型转化
-	if !c.IsSet(data) {
-		return "", errors.New("key not found: " + data)
-	}
+// put感觉本地用不到，所以空实现
+func (l *LocalConfig) PutData() {}
 
-	return c.GetString(data), nil
-}
-
-// 热更新因为监听的是整个文件，不确定哪个值改了，所有采用哈希的方式，直接修改外部值
-func WatchConfig(c *viper.Viper, value map[string]string, ctx context.Context) <-chan struct{} {
-	cm := NewConfigManager(c, value)
+// 传回的通道会在配置文件发生变化时发送信号
+func (l *LocalConfig) WatchData(ctx context.Context) <-chan struct{} {
 	ch := make(chan struct{}, 10)
 
 	go func() {
 		defer close(ch)
-		c.WatchConfig()
-		c.OnConfigChange(func(e fsnotify.Event) {
+		l.Viper.WatchConfig()
+		l.Viper.OnConfigChange(func(e fsnotify.Event) {
 			// 不知道为什么会连着调用两次，所以加个时间限制
-			if time.Since(cm.lastupdate) < 1*time.Second {
+			if time.Since(l.Lastupdate) < 1*time.Second {
 				return
 			}
 
-			cm.reloadAll()
-			cm.lastupdate = time.Now()
+			err := loadData(l)
+			if err != nil {
+				// 热更新时出错
+				l.Err = err
+				return
+			}
 
 			// 发送信号通知配置已更新
 			select {
@@ -98,30 +114,31 @@ func WatchConfig(c *viper.Viper, value map[string]string, ctx context.Context) <
 	return ch
 }
 
-// reloadAll 遍历所有配置项，热更新configMap中的值
-func (cm *ConfigManager) reloadAll() {
-	cm.mu.Lock()
-	defer cm.mu.Unlock()
+func loadData(l *LocalConfig) error {
+	var mu sync.Mutex
+	mu.Lock()
+	defer mu.Unlock()
 
-	for _, key := range cm.viper.AllKeys() {
-		cm.configMap[key] = cm.viper.GetString(key)
+	if err := l.Viper.ReadInConfig(); err != nil {
+		return err
 	}
+
+	if err := l.Viper.Unmarshal(l.Data); err != nil {
+		return err
+	}
+
+	l.Lastupdate = time.Now()
+	return nil
 }
 
 // Nacos部分
 // 定义查询结构体
 type NacosConfig struct {
-	DataId  string
-	Group   string
-	Content string
-}
-
-func NewNacosConfig(dataId, group, content string) *NacosConfig {
-	return &NacosConfig{
-		DataId:  dataId,
-		Group:   group,
-		Content: content,
-	}
+	DataId string                      // 配置key
+	Group  string                      // 配置组
+	Data   string                      // 配置value，获取值时也在这里获取
+	Client config_client.IConfigClient // Nacos客户端
+	Err    error                       // 统一在这里存放错误
 }
 
 func NewClientConfig(namespace, username, password string, time uint64) *constant.ClientConfig {
@@ -156,47 +173,73 @@ func NewNacos(clientConfig *constant.ClientConfig, serverConfigs []constant.Serv
 	return client, nil
 }
 
-func (p *NacosConfig) PutToNacos(client config_client.IConfigClient) error {
-	_, err := client.PublishConfig(vo.ConfigParam{
-		DataId:  p.DataId,
-		Group:   p.Group,
-		Content: p.Content,
-	})
-	return err
+// 返回接口类型
+func NewNacosConfig(dataId, group, content string, clientconfig *constant.ClientConfig, serverconfig []constant.ServerConfig) (ConfigManager, error) {
+	client, err := NewNacos(clientconfig, serverconfig)
+	if err != nil {
+		return nil, err
+	}
+	return &NacosConfig{
+		DataId: dataId,
+		Group:  group,
+		Data:   content,
+		Client: client,
+		Err:    nil,
+	}, nil
 }
 
-func (p *NacosConfig) GetFromNacos(client config_client.IConfigClient) (string, error) {
-	content, err := client.GetConfig(vo.ConfigParam{
+func (p *NacosConfig) GetData() interface{} {
+	return p.Data
+}
+
+func (p *NacosConfig) GetErr() error {
+	return p.Err
+}
+
+func (p *NacosConfig) PutData() {
+	_, err := p.Client.PublishConfig(vo.ConfigParam{
+		DataId:  p.DataId,
+		Group:   p.Group,
+		Content: p.Data,
+	})
+	p.Err = err
+}
+
+func (p *NacosConfig) LoadData() {
+	content, err := p.Client.GetConfig(vo.ConfigParam{
 		DataId: p.DataId,
 		Group:  p.Group,
 	})
 	if err != nil {
-		return "", err
+		p.Err = err
+		return
 	}
-	return content, nil
+	p.Data = content
 }
 
-// nacos热更新只监听特定一个键值对，所以不做修改，管道返回新数据，让用户自行修改新数据
-func (p *NacosConfig) WatchNacos(client config_client.IConfigClient, ctx context.Context) (<-chan string, <-chan error) {
-	ch := make(chan string, 10)
-	errch := make(chan error, 1)
+func (p *NacosConfig) WatchData(ctx context.Context) <-chan struct{} {
+	ch := make(chan struct{}, 10)
 	go func() {
-		defer func() {
-			close(ch)
-			close(errch)
-		}()
-		err := client.ListenConfig(vo.ConfigParam{
+		defer close(ch)
+		err := p.Client.ListenConfig(vo.ConfigParam{
 			DataId: p.DataId,
 			Group:  p.Group,
 			OnChange: func(namespace, group, dataId, data string) {
-				ch <- data
+				var mu sync.Mutex
+				mu.Lock()
+				defer mu.Unlock()
+				p.Data = data
+				ch <- struct{}{}
 			},
 		})
 		if err != nil {
-			errch <- err
+			var mu sync.Mutex
+			mu.Lock()
+			defer mu.Unlock()
+			p.Err = err
 			return
 		}
 		<-ctx.Done()
 	}()
-	return ch, errch
+	return ch
 }
