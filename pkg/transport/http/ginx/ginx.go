@@ -1,7 +1,6 @@
 package ginx
 
 import (
-	"context"
 	"github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"
 	"github.com/muxi-Infra/muxi-micro/pkg/errs"
@@ -21,9 +20,8 @@ var (
 )
 
 type engineConfig struct {
-	env         t_http.Env
-	enablePprof bool
-	g           *gin.Engine
+	env t_http.Env
+	g   *gin.Engine
 }
 
 type EngineOption func(*engineConfig)
@@ -32,17 +30,6 @@ type EngineOption func(*engineConfig)
 func WithEnv(env t_http.Env) EngineOption {
 	return func(cfg *engineConfig) {
 		cfg.env = env
-		// dev 和 test 环境默认开启 pprof
-		if env == t_http.EnvDev || env == t_http.EnvTest {
-			cfg.enablePprof = true
-		}
-	}
-}
-
-// 手动控制是否开启 pprof
-func WithPprof(enable bool) EngineOption {
-	return func(cfg *engineConfig) {
-		cfg.enablePprof = enable
 	}
 }
 
@@ -56,9 +43,8 @@ func WithEngine(g *gin.Engine) EngineOption {
 // 创建默认引擎，附带常用中间件和可选配置
 func NewDefaultEngine(opts ...EngineOption) *gin.Engine {
 	cfg := &engineConfig{
-		env:         t_http.EnvProd,
-		enablePprof: false,
-		g:           gin.Default(),
+		env: t_http.EnvProd,
+		g:   gin.Default(),
 	}
 
 	for _, opt := range opts {
@@ -66,7 +52,7 @@ func NewDefaultEngine(opts ...EngineOption) *gin.Engine {
 	}
 
 	// 非生产环境注册 pprof
-	if cfg.enablePprof {
+	if cfg.env != t_http.EnvProd {
 		pprof.Register(cfg.g)
 	}
 
@@ -106,7 +92,7 @@ func bind(ctx *gin.Context, req any) error {
 	return nil
 }
 
-func WrapClaimsAndReq[Req any, UserClaims any](getClaims func(ctx context.Context) (UserClaims, error), fn func(*gin.Context, Req, UserClaims) t_http.Response) gin.HandlerFunc {
+func WrapClaimsAndReq[Req any, UserClaims any](getClaims func(*gin.Context) (UserClaims, error), fn func(*gin.Context, Req, UserClaims) t_http.Response) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 
 		// 检查前置中间件是否存在错误,如果存在应当直接返回
@@ -189,7 +175,7 @@ func Wrap(fn func(*gin.Context) t_http.Response) gin.HandlerFunc {
 
 // WrapClaims 用于处理有用户验证但是没有请求体的请求
 // ctx表示上下文,Resp表示响应结构体(这里全部填web.Response),UserClaims表示用户信息
-func WrapClaims[UserClaims any](getClaims func(ctx context.Context) (UserClaims, error), fn func(*gin.Context, UserClaims) t_http.Response) gin.HandlerFunc {
+func WrapClaims[UserClaims any](getClaims func(ctx *gin.Context) (UserClaims, error), fn func(*gin.Context, UserClaims) t_http.Response) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 
 		//检查前置中间件是否存在错误,如果存在应当直接返回
