@@ -9,6 +9,7 @@ import (
 	"github.com/muxi-Infra/muxi-micro/pkg/transport/http/ginx/middleware/cors"
 	"github.com/muxi-Infra/muxi-micro/pkg/transport/http/ginx/middleware/limiter"
 	"github.com/muxi-Infra/muxi-micro/pkg/transport/http/ginx/middleware/timeout"
+
 	"net/http"
 )
 
@@ -64,22 +65,20 @@ func NewDefaultEngine(opts ...EngineOption) *gin.Engine {
 		opt(cfg)
 	}
 
-	// 使用 gin.Default（含 Logger + Recovery）
-	g := gin.Default()
+	// 非生产环境注册 pprof
+	if cfg.enablePprof {
+		pprof.Register(cfg.g)
+	}
 
-	// 通用中间件
+	return cfg.g
+}
+
+func UseDefaultMiddleware(g *gin.Engine) {
 	g.Use(
 		cors.Cors(),
 		limiter.Limiter(),
 		timeout.Timeout(),
 	)
-
-	// 非生产环境注册 pprof
-	if cfg.enablePprof {
-		pprof.Register(g)
-	}
-
-	return g
 }
 
 func SetBindErrCode(errCode int) {

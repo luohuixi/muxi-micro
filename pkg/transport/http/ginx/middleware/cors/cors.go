@@ -3,6 +3,7 @@ package cors
 import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"log"
 	"time"
 )
 
@@ -21,51 +22,59 @@ type corsCfg struct {
 	maxAge           time.Duration
 }
 
-type CorsOption func(cfg *corsCfg)
+type Option func(cfg *corsCfg)
 
-func WithCorsOrigins(origins []string) CorsOption {
+func WithCorsOrigins(origins []string) Option {
 	return func(cfg *corsCfg) {
 		cfg.origins = origins
 	}
 }
 
-func WithCorsAllowMethods(methods ...string) CorsOption {
+func WithCorsAllowMethods(methods ...string) Option {
 	return func(cfg *corsCfg) {
 		cfg.allowMethods = methods
 	}
 }
 
-func WithCorsAllowHeaders(headers ...string) CorsOption {
+func WithCorsAllowHeaders(headers ...string) Option {
 	return func(cfg *corsCfg) {
 		cfg.allowHeaders = headers
 	}
 }
 
-func WithCorsAllowCredentials(allow bool) CorsOption {
-	return func(cfg *corsCfg) {
-		cfg.allowCredentials = allow
-	}
-}
-
-func WithCorsMaxAge(d time.Duration) CorsOption {
+func WithCorsMaxAge(d time.Duration) Option {
 	return func(cfg *corsCfg) {
 		cfg.maxAge = d
 	}
 }
 
 // 跨域中间件
+func WithCorsAllowCredentials(allow bool) Option {
+	return func(cfg *corsCfg) {
+		cfg.allowCredentials = allow
+	}
+}
 
-func Cors(opts ...CorsOption) gin.HandlerFunc {
+func Cors(opts ...Option) gin.HandlerFunc {
 	cfg := &corsCfg{
 		origins:          DefaultOrigins,
 		allowMethods:     DefaultAllowMethods,
 		allowHeaders:     DefaultAllowHeaders,
-		allowCredentials: true,
+		allowCredentials: false,
 		maxAge:           DefaultMaxAge,
 	}
 
 	for _, opt := range opts {
 		opt(cfg)
+	}
+
+	// 兼容校验
+	if cfg.allowCredentials {
+		for _, o := range cfg.origins {
+			if o == "*" {
+				log.Println("[cors] ⚠️ 警告: AllowCredentials=true 时不能使用 AllowOrigins=[\"*\"].")
+			}
+		}
 	}
 
 	return cors.New(cors.Config{

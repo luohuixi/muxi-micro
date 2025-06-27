@@ -1,7 +1,6 @@
 package limiter
 
 import (
-	"fmt"
 	"github.com/gin-gonic/gin"
 	t_http "github.com/muxi-Infra/muxi-micro/pkg/transport/http"
 	"github.com/ulule/limiter/v3"
@@ -10,51 +9,63 @@ import (
 )
 
 const (
-	DefaultRateStr         = "1000-s"
+	DefaultRateStr         = "200-S"
 	DefaultCodeRateLimited = 42901
 	DefaultCodeRateError   = 50001
+	DefaultMSGRateLimited  = "请求太频繁，请稍后再试"
+	DefaultMSGRateError    = "限流器出错:"
 )
 
 type limiterCfg struct {
 	rateStr         string
 	store           limiter.Store
 	codeRateLimited int
+	msgRateLimited  string
 	codeRateError   int
+	msgRateError    string
 }
 
-type LimiterOption func(cfg *limiterCfg)
+type Option func(cfg *limiterCfg)
 
-func WithRate(rateStr string) LimiterOption {
+func WithRate(rateStr string) Option {
 	return func(cfg *limiterCfg) {
 		cfg.rateStr = rateStr
 	}
 }
 
-func WithStore(store limiter.Store) LimiterOption {
+func WithStore(store limiter.Store) Option {
 	return func(cfg *limiterCfg) {
 		cfg.store = store
 	}
 }
 
-func WithCodeRateLimited(code int) LimiterOption {
+func WithCodeRateLimited(code int) Option {
 	return func(cfg *limiterCfg) {
 		cfg.codeRateLimited = code
 	}
 }
 
-func WithCodeRateError(code int) LimiterOption {
+func WithMSGRateError(message string) Option {
 	return func(cfg *limiterCfg) {
-		cfg.codeRateError = code
+		cfg.msgRateError = message
+	}
+}
+
+func WithMSGRateLimited(message string) Option {
+	return func(cfg *limiterCfg) {
+		cfg.msgRateLimited = message
 	}
 }
 
 // 限流中间件
-func Limiter(opts ...LimiterOption) gin.HandlerFunc {
+func Limiter(opts ...Option) gin.HandlerFunc {
 	var cfg = &limiterCfg{
 		rateStr:         DefaultRateStr,
 		codeRateLimited: DefaultCodeRateLimited,
 		codeRateError:   DefaultCodeRateError,
 		store:           memory.NewStore(),
+		msgRateLimited:  DefaultMSGRateLimited,
+		msgRateError:    DefaultMSGRateError,
 	}
 
 	for _, opt := range opts {
@@ -71,7 +82,7 @@ func Limiter(opts ...LimiterOption) gin.HandlerFunc {
 	return l_gin.NewMiddleware(lim,
 		l_gin.WithLimitReachedHandler(func(c *gin.Context) {
 			c.AbortWithStatusJSON(429, t_http.CommonResp{
-				Message: "请求太频繁，请稍后再试",
+				Message: cfg.msgRateLimited,
 				Code:    cfg.codeRateLimited,
 				Data:    nil,
 			},
@@ -80,7 +91,7 @@ func Limiter(opts ...LimiterOption) gin.HandlerFunc {
 
 		l_gin.WithErrorHandler(func(c *gin.Context, err error) {
 			c.AbortWithStatusJSON(500, t_http.CommonResp{
-				Message: fmt.Sprintf("限流器出错:", err.Error()),
+				Message: cfg.msgRateError + err.Error(),
 				Code:    cfg.codeRateError,
 				Data:    nil,
 			})

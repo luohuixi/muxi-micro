@@ -1,6 +1,7 @@
 package zapx
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -19,7 +20,7 @@ func TestNewDefaultZapLogger_AllEnv(t *testing.T) {
 			if l == nil {
 				t.Errorf("NewDefaultZapLogger 返回空")
 			}
-			logAll(l, t)
+			logAll(l)
 		})
 	}
 }
@@ -37,7 +38,7 @@ func TestNewZapLogger_CustomCore(t *testing.T) {
 	if l == nil {
 		t.Fatal("自定义 core 创建失败")
 	}
-	logAll(l, t)
+	logAll(l)
 }
 
 func TestNewZapLogger_WithOutCore(t *testing.T) {
@@ -64,7 +65,7 @@ func TestNewZapLogger_CustomOptions(t *testing.T) {
 	if l == nil {
 		t.Fatal("自定义 options 创建失败")
 	}
-	logAll(l, t)
+	logAll(l)
 
 }
 
@@ -135,10 +136,17 @@ func TestLogDirClean(t *testing.T) {
 	}
 }
 
-func logAll(l logger.Logger, t *testing.T) {
+func logAll(l logger.Logger) {
 
 	l.With(logger.String("all", "everyLog"))
-	l.Info("test", logger.Int("1", 1))
+	l.Info("test",
+		logger.Int("1", 1),
+		logger.Int32("1", 1),
+		logger.Int64("1", 1),
+		logger.Any("1", 1),
+		logger.Error(errors.New("1234")),
+	)
+
 	l.Debug("test", logger.Int("1", 1))
 	l.Warn("test", logger.Int("1", 1))
 	l.Error("test", logger.Int("1", 1))

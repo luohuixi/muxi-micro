@@ -9,8 +9,8 @@ import (
 
 const (
 	DefaultTimeout = 10 * time.Second
-
-	CodeTimeout = 10003
+	DefaultMessage = "请求超时，请稍后重试"
+	CodeTimeout    = 10003
 )
 
 type timeoutCfg struct {
@@ -19,32 +19,32 @@ type timeoutCfg struct {
 	message  string
 }
 
-type TimeoutOption func(cfg *timeoutCfg)
+type Option func(cfg *timeoutCfg)
 
-func WithTimeoutDuration(d time.Duration) TimeoutOption {
+func WithTimeoutDuration(d time.Duration) Option {
 	return func(cfg *timeoutCfg) {
 		cfg.duration = d
 	}
 }
 
-func WithTimeoutCode(code int) TimeoutOption {
+func WithTimeoutCode(code int) Option {
 	return func(cfg *timeoutCfg) {
 		cfg.code = code
 	}
 }
 
-func WithTimeoutMessage(msg string) TimeoutOption {
+func WithTimeoutMessage(msg string) Option {
 	return func(cfg *timeoutCfg) {
 		cfg.message = msg
 	}
 }
 
 // 超时中间件
-func Timeout(opts ...TimeoutOption) gin.HandlerFunc {
+func Timeout(opts ...Option) gin.HandlerFunc {
 	cfg := &timeoutCfg{
 		duration: DefaultTimeout,
 		code:     CodeTimeout,
-		message:  "请求超时，请稍后重试",
+		message:  DefaultMessage,
 	}
 
 	for _, opt := range opts {
