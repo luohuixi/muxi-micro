@@ -180,8 +180,7 @@ func TestWrapClaimsAndReq(t *testing.T) {
 
 	t.Run("Success get", func(t *testing.T) {
 		w := httptest.NewRecorder()
-		req, _ := http.NewRequest(http.MethodGet, "/full", bytes.NewBufferString(`{"name":"bob"}`))
-		req.Header.Set("Content-Type", "application/json")
+		req, _ := http.NewRequest(http.MethodGet, "/full?name=bob", nil)
 		g.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -201,6 +200,7 @@ func TestWrapClaimsAndReq(t *testing.T) {
 		w := httptest.NewRecorder()
 		req, _ := http.NewRequest(http.MethodPost, "/full", bytes.NewBufferString(`{"name":"bob"}`))
 		req.Header.Set("Content-Type", "application/json")
+
 		g.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -213,7 +213,7 @@ func TestWrapClaimsAndReq(t *testing.T) {
 
 		assert.Equal(t, "ok", resp.Message)
 		assert.Equal(t, "bob", m["name"])
-		assert.Equal(t, float64(1), m["uid"]) // json.Unmarshal => float64
+		assert.Equal(t, float64(1), m["uid"])
 	})
 
 	t.Run("BindErr", func(t *testing.T) {
