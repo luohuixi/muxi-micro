@@ -4,13 +4,17 @@ import (
 	"github.com/IBM/sarama"
 )
 
-type Producer interface {
+type Sync_producer interface {
 	CreateProducer() error                                      //创建生产者
 	GetConfig() *sarama.Config                                  //获取配置
-	GetSuccess() <-chan *sarama.ProducerMessage                 //异步获取成功消息
-	GetError() <-chan *sarama.ProducerError                     //异步获取错误消息
 	SendMessage(topic, key, value string) (int32, int64, error) //发送消息
 	Close() error                                               //关闭生产者
+}
+
+type Async_producer interface {
+	Sync_producer 
+	GetSuccess() <-chan *sarama.ProducerMessage                 //异步获取成功消息
+	GetError() <-chan *sarama.ProducerError                     //异步获取错误消息
 }
 
 // 同步生成者
@@ -20,7 +24,7 @@ type SyncProducer struct {
 	producer sarama.SyncProducer //生产者
 }
 
-func NewSyncConfig(host []string) Producer {
+func NewSyncConfig(host []string) Sync_producer {
 	config := sarama.NewConfig()
 	// 默认是false
 	config.Producer.Return.Successes = true // 必须设为 true
@@ -34,15 +38,6 @@ func NewSyncConfig(host []string) Producer {
 
 func (p *SyncProducer) GetConfig() *sarama.Config {
 	return p.config
-}
-
-// 同步是直接返回的，写着部分只是为了和异步一致
-func (p *SyncProducer) GetSuccess() <-chan *sarama.ProducerMessage {
-	return nil
-}
-
-func (p *SyncProducer) GetError() <-chan *sarama.ProducerError {
-	return nil
 }
 
 func (p *SyncProducer) CreateProducer() error {
@@ -78,9 +73,11 @@ type AsyncProducer struct {
 	host     []string             //kafka的地址
 	config   *sarama.Config       //配置
 	producer sarama.AsyncProducer //生产者
+	// successCh <-chan *sarama.ProducerMessage
+	// errorCh <-chan *sarama.ProducerError
 }
 
-func NewAsyncConfig(host []string) Producer {
+func NewAsyncConfig(host []string) Async_producer {
 	config := sarama.NewConfig()
 	// 默认是Waitforlocal
 	config.Producer.RequiredAcks = sarama.NoResponse
@@ -111,6 +108,8 @@ func (p *AsyncProducer) CreateProducer() error {
 	}
 
 	p.producer = producer
+	// p.successCh = p.producer.Successes()
+	// p.errorCh = p.producer.Errors()
 	return nil
 }
 
