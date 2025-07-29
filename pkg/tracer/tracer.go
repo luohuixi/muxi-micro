@@ -24,12 +24,19 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
+type Tracer interface {
+	ServerInterceptor() grpc.UnaryServerInterceptor
+	ClientInterceptor() grpc.UnaryClientInterceptor
+	GinMiddleware(r *gin.Engine) gin.HandlerFunc
+	Close() error
+}
+
 type ZipkinConfig struct {
 	reporter zreporter.Reporter
 	tracer   opentracing.Tracer
 }
 
-func NewZipkin(zipkinAddr, service, host string, random float64) (*ZipkinConfig, error) {
+func NewZipkin(zipkinAddr, service, host string, random float64) (Tracer, error) {
 	if random > 1 || random < 0 {
 		return nil, errors.New("random number must be between 0 and 1")
 	}
@@ -63,7 +70,7 @@ func NewZipkin(zipkinAddr, service, host string, random float64) (*ZipkinConfig,
 	}, nil
 }
 
-func (z *ZipkinConfig) GrpcInterceptor() grpc.UnaryServerInterceptor {
+func (z *ZipkinConfig) ServerInterceptor() grpc.UnaryServerInterceptor {
 	opentracing.SetGlobalTracer(z.tracer)
 	return grpc_opentracing.UnaryServerInterceptor()
 }
@@ -73,7 +80,7 @@ func (z *ZipkinConfig) ClientInterceptor() grpc.UnaryClientInterceptor {
 	return grpc_opentracing.UnaryClientInterceptor()
 }
 
-func (z *ZipkinConfig) GinMiddleware() gin.HandlerFunc {
+func (z *ZipkinConfig) GinMiddleware(_ *gin.Engine) gin.HandlerFunc {
 	return ginhttp.Middleware(z.tracer)
 }
 
@@ -86,7 +93,7 @@ type JaegerConfig struct {
 	tracer opentracing.Tracer
 }
 
-func NewJaeger(jaegerAddr, service string, random float64) (*JaegerConfig, error) {
+func NewJaeger(jaegerAddr, service string, random float64) (Tracer, error) {
 	var style string
 	if random > 1 || random < 0 {
 		return nil, errors.New("random number must be between 0 and 1")
@@ -129,7 +136,7 @@ func (j *JaegerConfig) ClientInterceptor() grpc.UnaryClientInterceptor {
 	return grpc_opentracing.UnaryClientInterceptor()
 }
 
-func (j *JaegerConfig) GinMiddleware() gin.HandlerFunc {
+func (j *JaegerConfig) GinMiddleware(_ *gin.Engine) gin.HandlerFunc {
 	return ginhttp.Middleware(j.tracer)
 }
 
@@ -142,7 +149,7 @@ type SkyWalkingConfig struct {
 	reporter go2sky.Reporter
 }
 
-func NewSkyWalking(SkyWalkingAddr, service, instance string, random float64) (*SkyWalkingConfig, error) {
+func NewSkyWalking(SkyWalkingAddr, service, instance string, random float64) (Tracer, error) {
 	rep, err := sreporter.NewGRPCReporter(SkyWalkingAddr)
 	if err != nil {
 		return nil, err
