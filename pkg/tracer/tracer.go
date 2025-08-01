@@ -111,7 +111,6 @@ func NewJaeger(jaegerAddr, service string, random float64) (Tracer, error) {
 		},
 		Reporter: &jaegerconfig.ReporterConfig{
 			CollectorEndpoint: jaegerAddr,
-			//http://localhost:14268/api/traces
 		},
 	}
 
@@ -150,6 +149,9 @@ type SkyWalkingConfig struct {
 }
 
 func NewSkyWalking(SkyWalkingAddr, service, instance string, random float64) (Tracer, error) {
+	if random > 1 || random < 0 {
+		return nil, errors.New("random number must be between 0 and 1")
+	}
 	rep, err := sreporter.NewGRPCReporter(SkyWalkingAddr)
 	if err != nil {
 		return nil, err
