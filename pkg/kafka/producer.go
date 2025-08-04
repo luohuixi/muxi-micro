@@ -12,9 +12,9 @@ type Sync_producer interface {
 }
 
 type Async_producer interface {
-	Sync_producer 
-	GetSuccess() <-chan *sarama.ProducerMessage                 //异步获取成功消息
-	GetError() <-chan *sarama.ProducerError                     //异步获取错误消息
+	Sync_producer
+	GetSuccess() <-chan *sarama.ProducerMessage //异步获取成功消息
+	GetError() <-chan *sarama.ProducerError     //异步获取错误消息
 }
 
 // 同步生成者
@@ -73,13 +73,11 @@ type AsyncProducer struct {
 	host     []string             //kafka的地址
 	config   *sarama.Config       //配置
 	producer sarama.AsyncProducer //生产者
-	// successCh <-chan *sarama.ProducerMessage
-	// errorCh <-chan *sarama.ProducerError
 }
 
 func NewAsyncConfig(host []string) Async_producer {
 	config := sarama.NewConfig()
-	// 默认是Waitforlocal
+	// 默认是 Waitforlocal
 	config.Producer.RequiredAcks = sarama.NoResponse
 
 	// 返回允许用户自己改配置
@@ -108,8 +106,6 @@ func (p *AsyncProducer) CreateProducer() error {
 	}
 
 	p.producer = producer
-	// p.successCh = p.producer.Successes()
-	// p.errorCh = p.producer.Errors()
 	return nil
 }
 
