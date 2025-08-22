@@ -6,4 +6,6 @@ import (
 )
 
 const CacheNotFound = sql.CacheNotFound
+
+var DBNotFound = sql.DBNotFound
 {{- end -}}

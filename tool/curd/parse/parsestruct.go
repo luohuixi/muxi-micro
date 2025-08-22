@@ -28,8 +28,7 @@ type StructInfo struct {
 	Index   []FieldInfo
 }
 
-func ParseStruct(filename string) (string, []string, error) {
-	filePath := "model/model.go"
+func ParseStruct(filePath string) (string, []string, error) {
 	content, err := os.ReadFile(filePath)
 	if err != nil {
 		return "", nil, err
@@ -58,7 +57,8 @@ func ParseStruct(filename string) (string, []string, error) {
 		index = append(index, structInfo.Name)
 	}
 
-	return structInfos.Primary[0].Name, index, nil
+	index = append(index, structInfos.Primary[0].Name)
+	return structInfos.Name, index, nil
 }
 
 // parseFile 解析Go文件中的结构体

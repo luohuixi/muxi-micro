@@ -9,7 +9,10 @@ import (
 	"reflect"
 )
 
-var ErrNonPointer = errors.New("data must be a pointer")
+var (
+	ErrNonPointer = errors.New("data must be a pointer")
+	DBNotFound    = errors.New("this data is empty")
+)
 
 func ConnectDB(dsn string, model any) (*gorm.DB, error) {
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
