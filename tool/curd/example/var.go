@@ -1,4 +1,4 @@
-package example
+package model
 
 import (
 	"github.com/muxi-Infra/muxi-micro/pkg/sql"

@@ -7,8 +7,8 @@ import (
 
 func main() {
 	var Mu_xiCmd = &cobra.Command{
-		Use:   "Mu_xi",
-		Short: "Mu_xi-micro 总命令",
+		Use:   "muxi",
+		Short: "muxi-micro 总命令",
 	}
 
 	curd.InitCurdCobra(Mu_xiCmd)

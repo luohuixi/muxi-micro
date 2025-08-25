@@ -25,6 +25,14 @@ func InitCurdCobra(parentCobra *cobra.Command) {
 			if err != nil {
 				return err
 			}
+			cache, err := cmd.Flags().GetBool("cache")
+			if err != nil {
+				return err
+			}
+			cover, err := cmd.Flags().GetBool("cover")
+			if err != nil {
+				return err
+			}
 
 			modelPath := filepath.Join(dir, "model.go")
 			if _, err := os.Stat(modelPath); err != nil {
@@ -35,15 +43,15 @@ func InitCurdCobra(parentCobra *cobra.Command) {
 				return err
 			}
 
-			err = create.CreateExample_gen(pkg, dir, table, index)
+			err = create.CreateExample_gen(pkg, dir, table, index, cache)
 			if err != nil {
 				return err
 			}
-			err = create.CreateExample(pkg, dir, table)
+			err = create.CreateExample(pkg, dir, table, cache, cover)
 			if err != nil {
 				return err
 			}
-			err = create.CreateVar(pkg, dir)
+			err = create.CreateVar(pkg, dir, cache, cover)
 			if err != nil {
 				fmt.Println(err)
 			}
@@ -51,8 +59,10 @@ func InitCurdCobra(parentCobra *cobra.Command) {
 		},
 	}
 
-	curdCmd.Flags().String("package", "template", "生成文件的包名")
+	curdCmd.Flags().String("package", "model", "生成文件的包名")
 	curdCmd.Flags().String("dir", ".", "model文件以及文件生成目录")
+	curdCmd.Flags().Bool("cache", false, "是否开启缓存")
+	curdCmd.Flags().Bool("cover", false, "是否覆盖除 _gen.go 外的另外两个文件")
 
 	parentCobra.AddCommand(curdCmd)
 }

@@ -8,15 +8,15 @@ func (u *{{.ModelName}}Exec) Create(ctx context.Context, data *{{.ModelName}}) e
 	return nil
 }
 
-func (u *{{.ModelName}}Exec) FindOne(ctx context.Context, id int64) (*{{.ModelName}}, error) {
-	cachestr := fmt.Sprintf("%s%v", cache{{.ModelName}}{{.Pr}}Prefix, id)
+func (u *{{.ModelName}}Exec) FindOne(ctx context.Context, {{.Pr}} int64) (*{{.ModelName}}, error) {
+	cachestr := fmt.Sprintf("%s%v", cache{{.ModelName}}{{.Pr}}Prefix, {{.Pr}})
 	result, err, _ := group.Do(cachestr, func() (interface{}, error) {
 		datacache := u.Get(ctx, cachestr)
 		if datacache != nil {
 			return datacache, nil
 		}
 		var data {{.ModelName}}
-		u.exec.AddWhere("id = ?", id)
+		u.exec.AddWhere("{{.Pr}} = ?", {{.Pr}})
 		err := u.exec.Find(ctx, &data)
 		if err != nil {
 			return nil, err

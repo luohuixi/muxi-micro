@@ -8,17 +8,16 @@ import (
 	"unicode"
 )
 
-func safeFilename(tableName string) string {
-	return strings.Map(func(r rune) rune {
-		if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_' || r == '-' {
-			return r
-		}
-		return '_'
-	}, tableName)
-}
-
-func CreateVar(pkg, dir string) error {
-	tmplPath := filepath.Join("curd", "template", "var.tpl")
+func CreateVar(pkg, dir string, open, cover bool) error {
+	if cover == false && !CheckExist(dir, "var.go") {
+		return nil
+	}
+	var tmplPath string
+	if open {
+		tmplPath = filepath.Join("curd", "template", "with_cache", "var.tpl")
+	} else {
+		tmplPath = filepath.Join("curd", "template", "no_cache", "var.tpl")
+	}
 
 	t, err := template.New("var").ParseFiles(tmplPath)
 	if err != nil {
@@ -46,15 +45,23 @@ func CreateVar(pkg, dir string) error {
 	return nil
 }
 
-func CreateExample(pkg, dir, table string) error {
-	tmplPath := filepath.Join("curd", "template", "example.tpl")
+func CreateExample(pkg, dir, table string, open, cover bool) error {
+	if cover == false && !CheckExist(dir, safeFilename(table)+"model.go") {
+		return nil
+	}
+	var tmplPath string
+	if open {
+		tmplPath = filepath.Join("curd", "template", "with_cache", "example.tpl")
+	} else {
+		tmplPath = filepath.Join("curd", "template", "no_cache", "example.tpl")
+	}
 
 	t, err := template.New("example").ParseFiles(tmplPath)
 	if err != nil {
 		return err
 	}
 
-	outputPath := filepath.Join(dir, safeFilename(table)+"Model.go")
+	outputPath := filepath.Join(dir, safeFilename(table)+"model.go")
 	file, err := os.Create(outputPath)
 	if err != nil {
 		return err
@@ -77,11 +84,19 @@ func CreateExample(pkg, dir, table string) error {
 	return nil
 }
 
-func CreateExample_gen(pkg, dir, table string, fields []string) error {
-	tmplPath := []string{
-		filepath.Join("curd", "template", "header.tpl"),
-		filepath.Join("curd", "template", "cache.tpl"),
-		filepath.Join("curd", "template", "db.tpl"),
+func CreateExample_gen(pkg, dir, table string, fields []string, open bool) error {
+	var tmplPath []string
+	if open {
+		tmplPath = []string{
+			filepath.Join("curd", "template", "with_cache", "header.tpl"),
+			filepath.Join("curd", "template", "with_cache", "cache.tpl"),
+			filepath.Join("curd", "template", "with_cache", "db.tpl"),
+		}
+	} else {
+		tmplPath = []string{
+			filepath.Join("curd", "template", "no_cache", "header.tpl"),
+			filepath.Join("curd", "template", "no_cache", "db.tpl"),
+		}
 	}
 
 	t, err := template.New("header").ParseFiles(tmplPath...)
@@ -89,7 +104,7 @@ func CreateExample_gen(pkg, dir, table string, fields []string) error {
 		return err
 	}
 
-	outputPath := filepath.Join(dir, safeFilename(table)+"Model_gen.go")
+	outputPath := filepath.Join(dir, safeFilename(table)+"model_gen.go")
 	file, err := os.Create(outputPath)
 	if err != nil {
 		return err
@@ -115,9 +130,22 @@ func CreateExample_gen(pkg, dir, table string, fields []string) error {
 		return err
 	}
 
-	// 设置为只读权限
-	if err := file.Chmod(0444); err != nil {
-		return err
-	}
 	return nil
+}
+
+func safeFilename(tableName string) string {
+	return strings.Map(func(r rune) rune {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_' || r == '-' {
+			return r
+		}
+		return '_'
+	}, tableName)
+}
+
+func CheckExist(dir, filename string) bool {
+	path := filepath.Join(dir, filename)
+	if _, err := os.Stat(path); err != nil {
+		return true
+	}
+	return false
 }
