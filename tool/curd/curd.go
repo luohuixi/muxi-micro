@@ -1,4 +1,4 @@
-package cobra
+package curd
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 )
 
-func InitCurdCobra(parentCobra *cobra.Command) {
+func InitCurdCobra() *cobra.Command {
 	// curd 子命令
 	var curdCmd = &cobra.Command{
 		Use:   "curd",
@@ -17,22 +17,10 @@ func InitCurdCobra(parentCobra *cobra.Command) {
 		Long: "在你想要生成 curd 文件的地方创建 model.go，内含可通过 gorm 自动迁移的结构体，" +
 			"gorm 标签中 'primaryKey' 将被视为主键，主键和gorm标签中带有 'unique' 'index' 会自动生成查询",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			pkg, err := cmd.Flags().GetString("package")
-			if err != nil {
-				return err
-			}
-			dir, err := cmd.Flags().GetString("dir")
-			if err != nil {
-				return err
-			}
-			cache, err := cmd.Flags().GetBool("cache")
-			if err != nil {
-				return err
-			}
-			cover, err := cmd.Flags().GetBool("cover")
-			if err != nil {
-				return err
-			}
+			pkg, _ := cmd.Flags().GetString("package")
+			dir, _ := cmd.Flags().GetString("dir")
+			cache, _ := cmd.Flags().GetBool("cache")
+			cover, _ := cmd.Flags().GetBool("cover")
 
 			modelPath := filepath.Join(dir, "model.go")
 			if _, err := os.Stat(modelPath); err != nil {
@@ -64,5 +52,5 @@ func InitCurdCobra(parentCobra *cobra.Command) {
 	curdCmd.Flags().Bool("cache", false, "是否开启缓存")
 	curdCmd.Flags().Bool("cover", false, "是否覆盖除 _gen.go 外的另外两个文件")
 
-	parentCobra.AddCommand(curdCmd)
+	return curdCmd
 }

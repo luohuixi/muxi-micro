@@ -3,7 +3,6 @@ package {{.PackageName}}
 
 import (
 	"github.com/muxi-Infra/muxi-micro/pkg/sql"
-	"time"
 )
 
 var _ {{.ModelName}}Models = (*Extra{{.ModelName}}Exec)(nil)
