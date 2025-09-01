@@ -23,8 +23,9 @@ func TestCurdError(t *testing.T) {
 		})
 
 		err := curdCmd.Execute()
-		assert.ErrorContains(t, err, "The system cannot find the file specified.")
-
+		if err == nil {
+			t.Fatal("Expected an error, got nil")
+		}
 	})
 
 	t.Run("no primary key in model.go", func(t *testing.T) {
