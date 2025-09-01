@@ -3,13 +3,13 @@
 func (u *{{.ModelName}}Exec) DelCache(ctx context.Context, model *{{.ModelName}}) {
 	err := u.cacheExec.DeleteCache(fmt.Sprintf("%s%v", cache{{.ModelName}}{{.Pr}}Prefix, model.{{.Pr}}), ctx)
 	if err != nil {
-		u.logger.Error("Primary key cache delete failure", err)
+		u.logger.Error("主键缓存删除失败", logger.Int64("{{.Pr}}", model.{{.Pr}}),logger.Error(err))
 	}
 	{{- $outer := . -}}
     {{- range $notpr := .NotPrs}}
     err = u.cacheExec.DeleteCache(fmt.Sprintf("%s%v", cache{{$outer.ModelName}}{{$notpr}}Prefix, model.{{$notpr}}), ctx)
     if err != nil {
-        u.logger.Warn("Not-primary key cache delete failure", err)
+        u.logger.Warn("非主键缓存删除失败", logger.String("{{$notpr}}", model.{{$notpr}}),logger.Error(err))
     }
     {{- end}}
 }
@@ -20,13 +20,13 @@ func (u *{{.ModelName}}Exec) Get(ctx context.Context, cachestr string) *{{.Model
 	if err == nil {
 		err := UnMarshalJSON(cacheval, &data)
 		if err != nil {
-			u.logger.Warn("UnMarshal failure: ", err)
+			u.logger.Warn("Json 序列化出错", logger.Error(err))
 			return nil
 		}
 		return &data
 	}
 	if !errors.Is(err, CacheNotFound) {
-		u.logger.Warn("Primary key cache get failure: ", err)
+		u.logger.Warn("主键缓存获取失败", logger.Error(err))
 		return nil
 	}
 	return nil
@@ -39,7 +39,7 @@ func (u *{{.ModelName}}Exec) GetMany(ctx context.Context, cachestr string) *[]{{
 		var key []int64
 		err := UnMarshalString(cacheval, &key)
 		if err != nil {
-			u.logger.Warn("UnMarshal failure: ", err)
+			u.logger.Warn("Json 序列化出错", logger.Error(err))
 			return nil
 		}
 		for _, c := range key {
@@ -52,7 +52,7 @@ func (u *{{.ModelName}}Exec) GetMany(ctx context.Context, cachestr string) *[]{{
 		return &datas
 	}
 	if !errors.Is(err, CacheNotFound) {
-		u.logger.Warn("Not-primary key cache get failure: ", err)
+		u.logger.Warn("非主键缓存获取失败", logger.Error(err))
 		return nil
 	}
 	return nil
@@ -62,7 +62,7 @@ func (u *{{.ModelName}}Exec) Set(cachestr string, data *{{.ModelName}}) {
 	ctx, cancel := context.WithTimeout(context.Background(), u.cacheExec.SetTTl)
 	err := u.cacheExec.SetCache(cachestr, ctx, data)
 	if err != nil {
-		u.logger.Warn("Primary key cache set failure: ", err)
+		u.logger.Warn("主键缓存设置失败", logger.Error(err))
 	}
 	cancel()
 }
@@ -77,7 +77,7 @@ func (u *{{.ModelName}}Exec) SetMany(cachestr string, data *[]{{.ModelName}}) {
 	}
 	err := u.cacheExec.SetCache(cachestr, ctx, &key)
 	if err != nil {
-		u.logger.Warn("Not-primary key cache set failure: ", err)
+		u.logger.Warn("非主键缓存设置失败", logger.Error(err))
 	}
 	cancel()
 }
