@@ -119,7 +119,7 @@ func (p *AsyncProducer) SendMessage(topic, key, value string) (int32, int64, err
 	p.producer.Input() <- msg
 
 	//异步不能在这里查错
-	return -1, -1, nil
+	return 0, 0, nil
 }
 
 func (p *AsyncProducer) Close() error {

@@ -16,7 +16,7 @@ type CacheExecute struct {
 	SetTTl   time.Duration //写入缓存的允许最大时长
 }
 
-func ConnectCache(addr, password string, number int, TTL, TTL2 time.Duration) *CacheExecute {
+func ConnectCache(addr, password string, number int, CacheTTL, SetTTL time.Duration) *CacheExecute {
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     addr,
 		Password: password,
@@ -25,8 +25,8 @@ func ConnectCache(addr, password string, number int, TTL, TTL2 time.Duration) *C
 
 	return &CacheExecute{
 		rdb,
-		TTL,
-		TTL2,
+		CacheTTL,
+		SetTTL,
 	}
 }
 
