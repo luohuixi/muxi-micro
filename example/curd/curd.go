@@ -20,7 +20,7 @@ func main() {
 	// 异步设置缓存时间
 	ttlForSet := 5 * time.Second
 	// 日志记录 redis 错误
-	l := zapx.NewDefaultZapLogger(logger.EnvTest, true, "./logs")
+	l := zapx.NewDefaultZapLogger("./logs", logger.EnvTest)
 	instance, err := example.NewUserModels(
 		DBdsn,
 		redisAddr,
