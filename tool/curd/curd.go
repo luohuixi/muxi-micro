@@ -47,7 +47,7 @@ func InitCurdCobra() *cobra.Command {
 		},
 	}
 
-	curdCmd.Flags().String("package", "model", "生成文件的包名")
+	curdCmd.Flags().String("package", "repository", "生成文件的包名")
 	curdCmd.Flags().String("dir", ".", "model文件以及文件生成目录")
 	curdCmd.Flags().Bool("cache", false, "是否开启缓存")
 	curdCmd.Flags().Bool("cover", false, "是否覆盖除 _gen.go 外的另外两个文件")

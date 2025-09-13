@@ -18,14 +18,14 @@ type Extra{{.ModelName}}Exec struct {
 	*{{.ModelName}}Exec
 }
 
-func New{{.ModelName}}Models(DBdsn, redisAddr, redisPassword string, number int, ttlForCache, ttlForSet time.Duration, l logger.Logger) ({{.ModelName}}Models, error) {
+func New{{.ModelName}}Models(DBdsn string,  Cache *CacheStruct) ({{.ModelName}}Models, error) {
 	db, err := sql.ConnectDB(DBdsn, {{.ModelName}}{})
 	if err != nil {
 		return nil, err
 	}
-	cache := sql.ConnectCache(redisAddr, redisPassword, number, ttlForCache, ttlForSet)
+	cache := sql.ConnectCache(Cache.RedisAddr, Cache.RedisPassword, Cache.Number, Cache.TtlForCache, Cache.TtlForSet)
 
-	instance := New{{.ModelName}}Model(db, cache, l)
+	instance := New{{.ModelName}}Model(db, cache, Cache.Log)
 
 	return &Extra{{.ModelName}}Exec{
 		instance,

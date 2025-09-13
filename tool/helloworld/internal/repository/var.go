@@ -1,8 +1,7 @@
-{{- define "var" -}}
-package {{.PackageName}}
+package repository
 
 import (
-    "github.com/muxi-Infra/muxi-micro/pkg/logger"
+	"github.com/muxi-Infra/muxi-micro/pkg/logger"
 	"github.com/muxi-Infra/muxi-micro/pkg/sql"
 	"time"
 )
@@ -19,4 +18,3 @@ type CacheStruct struct {
 const CacheNotFound = sql.CacheNotFound
 
 var DBNotFound = sql.DBNotFound
-{{- end -}}
