@@ -1,0 +1,21 @@
+package main
+
+import (
+	"github.com/muxi-Infra/muxi-micro/tool/curd"
+	"github.com/muxi-Infra/muxi-micro/tool/new"
+	"github.com/muxi-Infra/muxi-micro/tool/tests"
+	"github.com/spf13/cobra"
+)
+
+func main() {
+	var muxiCmd = &cobra.Command{
+		Use:   "muxi",
+		Short: "muxi-micro 总命令",
+	}
+
+	muxiCmd.AddCommand(curd.InitCurdCobra())
+	muxiCmd.AddCommand(new.InitNewCobra())
+	muxiCmd.AddCommand(tests.InitTestCobra())
+
+	_ = muxiCmd.Execute()
+}
