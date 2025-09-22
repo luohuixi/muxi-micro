@@ -1,15 +1,24 @@
 {{- define "cache" -}}
+// 序列化
+func UnMarshalJSON_{{.ModelName}} (s string, model *{{.ModelName}}) error {
+    return json.Unmarshal([]byte(s), model)
+}
+
+func UnMarshalString_{{.ModelName}} (s string, model *[]int64) error {
+    return json.Unmarshal([]byte(s), model)
+}
+
 // cache
 func (u *{{.ModelName}}Exec) DelCache(ctx context.Context, model *{{.ModelName}}) {
 	err := u.cacheExec.DeleteCache(fmt.Sprintf("%s%v", cache{{.ModelName}}{{.Pr}}Prefix, model.{{.Pr}}), ctx)
 	if err != nil {
-		u.logger.Error("主键缓存删除失败", logger.Int64("{{.Pr}}", model.{{.Pr}}),logger.Error(err))
+	    u.logger.Error("主键缓存删除失败", logger.Field{"{{.Pr}}": model.{{.Pr}}, "error": err})
 	}
 	{{- $outer := . -}}
     {{- range $notpr := .NotPrs}}
-    err = u.cacheExec.DeleteCache(fmt.Sprintf("%s%v", cache{{$outer.ModelName}}{{$notpr}}Prefix, model.{{$notpr}}), ctx)
+    err = u.cacheExec.DeleteCache(fmt.Sprintf("%s%v", cache{{$outer.ModelName}}{{$notpr.Name}}Prefix, model.{{$notpr.Name}}), ctx)
     if err != nil {
-        u.logger.Warn("非主键缓存删除失败", logger.String("{{$notpr}}", model.{{$notpr}}),logger.Error(err))
+        u.logger.Warn("非主键缓存删除失败", logger.Field{"{{$notpr.Name}}": model.{{$notpr.Name}}, "error": err})
     }
     {{- end}}
 }
@@ -18,15 +27,15 @@ func (u *{{.ModelName}}Exec) Get(ctx context.Context, cachestr string) *{{.Model
 	var data {{.ModelName}}
 	cacheval, err := u.cacheExec.GetCache(cachestr, ctx)
 	if err == nil {
-		err := UnMarshalJSON(cacheval, &data)
+		err := UnMarshalJSON_{{.ModelName}}(cacheval, &data)
 		if err != nil {
-			u.logger.Warn("Json 序列化出错", logger.Error(err))
+			u.logger.Warn("Json 序列化出错", logger.Field{"error": err})
 			return nil
 		}
 		return &data
 	}
 	if !errors.Is(err, CacheNotFound) {
-		u.logger.Warn("主键缓存获取失败", logger.Error(err))
+		u.logger.Warn("主键缓存获取失败", logger.Field{"error": err})
 		return nil
 	}
 	return nil
@@ -37,9 +46,9 @@ func (u *{{.ModelName}}Exec) GetMany(ctx context.Context, cachestr string) *[]{{
 	cacheval, err := u.cacheExec.GetCache(cachestr, ctx)
 	if err == nil {
 		var key []int64
-		err := UnMarshalString(cacheval, &key)
+		err := UnMarshalString_{{.ModelName}}(cacheval, &key)
 		if err != nil {
-			u.logger.Warn("Json 序列化出错", logger.Error(err))
+			u.logger.Warn("Json 序列化出错", logger.Field{"error": err})
 			return nil
 		}
 		for _, c := range key {
@@ -52,7 +61,7 @@ func (u *{{.ModelName}}Exec) GetMany(ctx context.Context, cachestr string) *[]{{
 		return &datas
 	}
 	if !errors.Is(err, CacheNotFound) {
-		u.logger.Warn("非主键缓存获取失败", logger.Error(err))
+		u.logger.Warn("非主键缓存获取失败", logger.Field{"error": err})
 		return nil
 	}
 	return nil
@@ -62,7 +71,7 @@ func (u *{{.ModelName}}Exec) Set(cachestr string, data *{{.ModelName}}) {
 	ctx, cancel := context.WithTimeout(context.Background(), u.cacheExec.SetTTl)
 	err := u.cacheExec.SetCache(cachestr, ctx, data)
 	if err != nil {
-		u.logger.Warn("主键缓存设置失败", logger.Error(err))
+		u.logger.Warn("主键缓存设置失败", logger.Field{"error": err})
 	}
 	cancel()
 }
@@ -77,7 +86,7 @@ func (u *{{.ModelName}}Exec) SetMany(cachestr string, data *[]{{.ModelName}}) {
 	}
 	err := u.cacheExec.SetCache(cachestr, ctx, &key)
 	if err != nil {
-		u.logger.Warn("非主键缓存设置失败", logger.Error(err))
+		u.logger.Warn("非主键缓存设置失败", logger.Field{"error": err})
 	}
 	cancel()
 }

@@ -5,55 +5,43 @@ package {{.PackageName}}
 
 import (
     "context"
-    "encoding/json"
     "errors"
     "fmt"
     "github.com/muxi-Infra/muxi-micro/pkg/logger"
     "github.com/muxi-Infra/muxi-micro/pkg/sql"
-    "golang.org/x/sync/singleflight"
     "gorm.io/gorm"
+    "encoding/json"
 )
 
 const (
     {{- range $field := .Fields}}
-    cache{{$.ModelName}}{{$field}}Prefix = "cache:{{$.ModelName}}:{{$field}}:"
+    cache{{$.ModelName}}{{$field.Name}}Prefix = "cache:{{$.ModelName}}:{{$field.Name}}:"
     {{- end}}
 )
-
-var group singleflight.Group
 
 type {{.ModelName}}Model interface {
     Create(ctx context.Context, data *{{.ModelName}}) error
     FindOne(ctx context.Context, id int64) (*{{.ModelName}}, error)
     {{- range $notPr := .NotPrs}}
-    FindBy{{$notPr}}(ctx context.Context, {{$notPr}} string) (*[]{{$.ModelName}}, error)
+    FindBy{{$notPr.Name}}(ctx context.Context, {{$notPr.Name}} {{$notPr.Type}}) (*[]{{$.ModelName}}, error)
     {{- end}}
     Update(ctx context.Context, data *{{.ModelName}}) error
     Delete(ctx context.Context, id int64) error
 }
 
 type {{.ModelName}}Exec struct {
-    exec      *sql.Execute
+    Exec      *sql.Execute
     cacheExec *sql.CacheExecute
     logger    logger.Logger
 }
 
 func New{{.ModelName}}Model(db *gorm.DB, cache *sql.CacheExecute, logger logger.Logger) *{{.ModelName}}Exec {
-    exec := sql.NewExecute({{.ModelName}}{}, db)
+    exec := sql.NewExecute(db)
     return &{{.ModelName}}Exec{
-        exec:      exec,
+        Exec:      exec,
         cacheExec: cache,
         logger:    logger,
     }
-}
-
-// 序列化
-func UnMarshalJSON(s string, model *{{.ModelName}}) error {
-    return json.Unmarshal([]byte(s), model)
-}
-
-func UnMarshalString(s string, model *[]int64) error {
-    return json.Unmarshal([]byte(s), model)
 }
 
 {{template "db" $}}

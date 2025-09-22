@@ -5,32 +5,28 @@ package {{.PackageName}}
 
 import (
     "context"
-    "fmt"
     "github.com/muxi-Infra/muxi-micro/pkg/sql"
-    "golang.org/x/sync/singleflight"
     "gorm.io/gorm"
 )
-
-var group singleflight.Group
 
 type {{.ModelName}}Model interface {
     Create(ctx context.Context, data *{{.ModelName}}) error
     FindOne(ctx context.Context, id int64) (*{{.ModelName}}, error)
     {{- range $notPr := .NotPrs}}
-    FindBy{{$notPr}}(ctx context.Context, {{$notPr}} string) (*[]{{$.ModelName}}, error)
+    FindBy{{$notPr.Name}}(ctx context.Context, {{$notPr.Name}} {{$notPr.Type}}) (*[]{{$.ModelName}}, error)
     {{- end}}
     Update(ctx context.Context, data *{{.ModelName}}) error
     Delete(ctx context.Context, id int64) error
 }
 
 type {{.ModelName}}Exec struct {
-    exec      *sql.Execute
+    Exec      *sql.Execute
 }
 
 func New{{.ModelName}}Model(db *gorm.DB) *{{.ModelName}}Exec {
-    exec := sql.NewExecute({{.ModelName}}{}, db)
+    exec := sql.NewExecute(db)
     return &{{.ModelName}}Exec{
-        exec:      exec,
+        Exec:      exec,
     }
 }
 

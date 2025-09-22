@@ -11,7 +11,7 @@ func (g *Grpc) ServerInterceptor() grpc.UnaryServerInterceptor {
 		resp, err = handler(ctx, req)
 		if err != nil {
 			str := g.Addr + " 发生错误"
-			g.logger.Error(str, logger.Error(err))
+			u.logger.Warn(str, logger.Field{"error": err})
 		}
 		return resp, err
 	}
