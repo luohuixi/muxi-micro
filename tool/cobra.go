@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/muxi-Infra/muxi-micro/tool/curd"
 	"github.com/muxi-Infra/muxi-micro/tool/new"
+	"github.com/muxi-Infra/muxi-micro/tool/tests"
 	"github.com/spf13/cobra"
 )
 
@@ -14,6 +15,7 @@ func main() {
 
 	muxiCmd.AddCommand(curd.InitCurdCobra())
 	muxiCmd.AddCommand(new.InitNewCobra())
+	muxiCmd.AddCommand(tests.InitTestCobra())
 
 	_ = muxiCmd.Execute()
 }

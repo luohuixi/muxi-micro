@@ -1,11 +1,14 @@
 package create
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 )
+
+var DirNotEsxitErr = errors.New("can not find dir")
 
 func CreateDocument(rootDir string) error {
 	dirs := []string{
@@ -158,7 +161,7 @@ func CreateWire(rootDir string) error {
 }
 
 func CreateExplain(rootDir string) error {
-	paths := []string{"explain.md", "go.mod", "go.sum"}
+	paths := []string{"explain.md", "go.mod", "go.sum", "Dockerfile"}
 	for _, p := range paths {
 		templatePath := filepath.Join("new", "template", p+".tpl")
 		templateContent, err := ioutil.ReadFile(templatePath)
@@ -174,6 +177,9 @@ func CreateExplain(rootDir string) error {
 }
 
 func CreateAll(rootDir string) error {
+	if _, err := os.Stat(rootDir); err != nil {
+		return DirNotEsxitErr
+	}
 	if err := CreateDocument(rootDir); err != nil {
 		return err
 	}

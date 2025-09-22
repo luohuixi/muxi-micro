@@ -1,9 +1,10 @@
 package new
 
 import (
-	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNew(t *testing.T) {
@@ -12,9 +13,9 @@ func TestNew(t *testing.T) {
 		var output strings.Builder
 		newCmd.SetOutput(&output)
 		newCmd.SetArgs([]string{
-			"--dir", "test",
+			"--dir", "dir not exist",
 		})
 		err := newCmd.Execute()
-		assert.ErrorContains(t, err, "The system cannot find the path specified")
+		assert.ErrorContains(t, err, "can not find dir")
 	})
 }
