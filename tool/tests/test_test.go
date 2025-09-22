@@ -24,6 +24,11 @@ func TestTest(t *testing.T) {
 			"--file", "nonexist.go",
 		})
 		err := testCmd.Execute()
-		assert.ErrorContains(t, err, "The system cannot find the file specified.")
+		assert.Error(t, err)
+		assert.True(t,
+			strings.Contains(err.Error(), "The system cannot find the file specified") ||
+				strings.Contains(err.Error(), "no such file or directory"),
+			"错误消息不匹配",
+		)
 	})
 }
