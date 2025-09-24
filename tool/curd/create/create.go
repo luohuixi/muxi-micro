@@ -6,9 +6,11 @@ import (
 	"strings"
 	"text/template"
 	"unicode"
+
+	"github.com/muxi-Infra/muxi-micro/tool/curd/parse"
 )
 
-func CreateVar(pkg, dir string, open, cover bool) error {
+func CreateVar(pkg, table, dir string, open, cover bool) error {
 	if cover == false && !CheckExist(dir, "var.go") {
 		return nil
 	}
@@ -34,8 +36,10 @@ func CreateVar(pkg, dir string, open, cover bool) error {
 
 	data := struct {
 		PackageName string
+		ModelName   string
 	}{
 		PackageName: pkg,
+		ModelName:   table,
 	}
 
 	if err := t.ExecuteTemplate(file, "var", data); err != nil {
@@ -84,7 +88,7 @@ func CreateExample(pkg, dir, table string, open, cover bool) error {
 	return nil
 }
 
-func CreateExample_gen(pkg, dir, table string, fields []string, open bool) error {
+func CreateExample_gen(pkg, dir, table string, fields []parse.FieldInfo, open bool) error {
 	var tmplPath []string
 	if open {
 		tmplPath = []string{
@@ -115,18 +119,50 @@ func CreateExample_gen(pkg, dir, table string, fields []string, open bool) error
 	data := struct {
 		PackageName string
 		ModelName   string
-		Fields      []string
-		NotPrs      []string
+		Fields      []parse.FieldInfo
+		NotPrs      []parse.FieldInfo
 		Pr          string
 	}{
 		PackageName: pkg,
 		ModelName:   table,
 		Fields:      fields,
 		NotPrs:      fields[:len(fields)-1],
-		Pr:          fields[len(fields)-1],
+		Pr:          fields[len(fields)-1].Name,
 	}
 
 	if err := t.ExecuteTemplate(file, "header", data); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func CreateTranscation(pkg, dir string, transcation bool) error {
+	if transcation == false {
+		return nil
+	}
+	var tmplPath string
+	tmplPath = filepath.Join("curd", "template", "transaction.tpl")
+	t, err := template.New("header").ParseFiles(tmplPath)
+	if err != nil {
+		return err
+	}
+
+	outputPath := filepath.Join(dir, "transaction.go")
+	file, err := os.Create(outputPath)
+	if err != nil {
+		return err
+	}
+
+	defer file.Close()
+
+	data := struct {
+		PackageName string
+	}{
+		PackageName: pkg,
+	}
+
+	if err := t.ExecuteTemplate(file, "transaction", data); err != nil {
 		return err
 	}
 

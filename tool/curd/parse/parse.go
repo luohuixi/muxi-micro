@@ -2,6 +2,7 @@ package parse
 
 import (
 	"errors"
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -28,66 +29,60 @@ type StructInfo struct {
 	Index   []FieldInfo
 }
 
-func ParseStruct(filePath string) (string, []string, error) {
+// ParseStructs 解析文件中的所有结构体并返回它们的信息
+func ParseStructs(filePath string) ([]StructInfo, error) {
 	content, err := os.ReadFile(filePath)
 	if err != nil {
-		return "", nil, err
+		return nil, err
 	}
 
-	structInfos, err := parseFile(content)
+	structs, err := parseFile(content)
 	if err != nil {
-		return "", nil, err
+		return nil, err
 	}
 
-	if len(structInfos.Primary) == 0 {
-		return "", nil, ErrNoPrimaryKey
-	}
-	if len(structInfos.Primary) > 1 {
-		return "", nil, ErrManyPrimaryKey
-	}
-	if structInfos.Primary[0].Type != "int64" {
-		return "", nil, ErrPrimaryKeyType
-	}
-
-	var index []string
-	for _, structInfo := range structInfos.Index {
-		if structInfo.Type == "unknown" {
-			continue
+	// 对每个结构体进行检查
+	for _, s := range structs {
+		if len(s.Primary) == 0 {
+			return nil, fmt.Errorf("%w in struct %s", ErrNoPrimaryKey, s.Name)
 		}
-		index = append(index, structInfo.Name)
+		if len(s.Primary) > 1 {
+			return nil, fmt.Errorf("%w in struct %s", ErrManyPrimaryKey, s.Name)
+		}
+		if s.Primary[0].Type != "int64" {
+			return nil, fmt.Errorf("%w in struct %s", ErrPrimaryKeyType, s.Name)
+		}
 	}
 
-	index = append(index, structInfos.Primary[0].Name)
-	return structInfos.Name, index, nil
+	return structs, nil
 }
 
-// parseFile 解析Go文件中的结构体
-func parseFile(content []byte) (*StructInfo, error) {
+// parseFile 解析Go文件中的所有结构体
+func parseFile(content []byte) ([]StructInfo, error) {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, "", content, parser.ParseComments)
 	if err != nil {
 		return nil, err
 	}
 
-	var structInfos StructInfo
+	var structs []StructInfo
 
 	ast.Inspect(f, func(n ast.Node) bool {
-		// 只处理type
 		typeSpec, ok := n.(*ast.TypeSpec)
 		if !ok {
 			return true
 		}
-		// 只处理struct
+
 		structType, ok := typeSpec.Type.(*ast.StructType)
 		if !ok {
 			return true
 		}
+
 		info := StructInfo{
 			Name: typeSpec.Name.Name,
 		}
 
 		for _, field := range structType.Fields.List {
-			// 跳过嵌入字段
 			if len(field.Names) == 0 || field.Tag == nil {
 				continue
 			}
@@ -103,20 +98,20 @@ func parseFile(content []byte) (*StructInfo, error) {
 			tag := strings.Trim(field.Tag.Value, "`")
 			fieldInfo.Tag = getTagValue(tag, "gorm")
 			if fieldInfo.Tag != "" {
-				if isPrimaryKey := strings.Contains(fieldInfo.Tag, "primaryKey"); isPrimaryKey {
+				if strings.Contains(fieldInfo.Tag, "primaryKey") {
 					info.Primary = append(info.Primary, fieldInfo)
 				}
-				if isIndex := strings.Contains(fieldInfo.Tag, "index") || strings.Contains(fieldInfo.Tag, "unique"); isIndex {
+				if strings.Contains(fieldInfo.Tag, "index") || strings.Contains(fieldInfo.Tag, "unique") {
 					info.Index = append(info.Index, fieldInfo)
 				}
 			}
 		}
 
-		structInfos = info
+		structs = append(structs, info)
 		return true
 	})
 
-	return &structInfos, nil
+	return structs, nil
 }
 
 func getTypeName(expr ast.Expr) string {
