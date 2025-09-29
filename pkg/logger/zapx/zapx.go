@@ -3,13 +3,13 @@ package zapx
 import (
 	"fmt"
 	"github.com/muxi-Infra/muxi-micro/pkg/logger"
+	"github.com/muxi-Infra/muxi-micro/static"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 type ZapLogger struct{ l *zap.Logger }
@@ -21,7 +21,7 @@ type ZapCfg struct {
 	options []zap.Option
 }
 
-func NewDefaultZapLogger(logDir string, env logger.Env) logger.Logger {
+func NewDefaultZapLogger(logDir string, env static.Env) logger.Logger {
 	return NewZapLogger(
 		WithDefaultZapCore(
 			WithLogDir(logDir),
@@ -45,20 +45,13 @@ func NewZapLogger(opts ...ZapOption) logger.Logger {
 type CoreOption func(*coreCfg)
 
 type coreCfg struct {
-	env          logger.Env
-	splitByLevel bool
-	logDir       string
+	env    static.Env
+	logDir string
 }
 
-func WithCoreEnv(env logger.Env) CoreOption {
+func WithCoreEnv(env static.Env) CoreOption {
 	return func(cfg *coreCfg) {
 		cfg.env = env
-	}
-}
-
-func WithCoreSplit(splitByLevel bool) CoreOption {
-	return func(cfg *coreCfg) {
-		cfg.splitByLevel = splitByLevel
 	}
 }
 
@@ -71,16 +64,15 @@ func WithLogDir(logDir string) CoreOption {
 func WithDefaultZapCore(opts ...CoreOption) ZapOption {
 	return func(cfg *ZapCfg) {
 		var corecfg = coreCfg{
-			splitByLevel: false,
-			logDir:       "./logs",
-			env:          logger.EnvProd,
+			logDir: "./logs",
+			env:    static.EnvProd,
 		}
 
 		for _, opt := range opts {
 			opt(&corecfg)
 		}
 		// dev 只需要 stdout，不强制创建 logDir
-		if corecfg.env != logger.EnvDev {
+		if corecfg.env != static.EnvDev {
 			corecfg.logDir = filepath.Clean(corecfg.logDir)
 			if err := os.MkdirAll(corecfg.logDir, 0755); err != nil {
 				log.Panicf("无法创建日志目录: %v", err)
@@ -92,20 +84,20 @@ func WithDefaultZapCore(opts ...CoreOption) ZapOption {
 
 		switch corecfg.env {
 		// ======== DEV：彩色到控制台 ========
-		case logger.EnvDev:
+		case static.EnvDev:
 			cfg.core = zapcore.NewCore(consoleEnc, zapcore.AddSync(os.Stdout), zapcore.DebugLevel)
 			return
 
 		// ======== TEST：控制台彩色 + 文件 JSON ========
-		case logger.EnvTest:
+		case static.EnvTest:
 			consoleCore := zapcore.NewCore(consoleEnc, zapcore.AddSync(os.Stdout), zapcore.DebugLevel)
-			fileCore := buildFileCores(jsonEnc, corecfg.splitByLevel, corecfg.logDir, false) // 仅文件
+			fileCore := buildFileCores(jsonEnc, corecfg.logDir, false) // 仅文件
 			cfg.core = zapcore.NewTee(append([]zapcore.Core{consoleCore}, fileCore...)...)
 			return
 
 		// ======== PROD(默认)：全 JSON 单行 ========
-		case logger.EnvProd:
-			cores := buildFileCores(jsonEnc, corecfg.splitByLevel, corecfg.logDir, true) // stdout+file 共写
+		case static.EnvProd:
+			cores := buildFileCores(jsonEnc, corecfg.logDir, true) // stdout+file 共写
 			cfg.core = zapcore.NewTee(cores...)
 
 		default:
@@ -137,36 +129,17 @@ func WithZapCore(core zapcore.Core) ZapOption {
 }
 
 // 构造文件相关 core；如果 withStdout=true，则 stdout 也走同 encoder（生产）
-func buildFileCores(enc zapcore.Encoder, split bool, dir string, withStdout bool) []zapcore.Core {
+func buildFileCores(enc zapcore.Encoder, dir string, withStdout bool) []zapcore.Core {
 	var cores []zapcore.Core
 	stdout := zapcore.AddSync(os.Stdout)
 
-	if !split {
-		var ws zapcore.WriteSyncer
-		if withStdout {
-			ws = zapcore.NewMultiWriteSyncer(stdout, zapcore.AddSync(newRotateLogger(fmt.Sprintf("%s/app.log", dir))))
-		} else {
-			ws = zapcore.AddSync(newRotateLogger(fmt.Sprintf("%s/app.log", dir)))
-		}
-		cores = append(cores, zapcore.NewCore(enc, ws, zapcore.DebugLevel))
-		return cores
+	var ws zapcore.WriteSyncer
+	if withStdout {
+		ws = zapcore.NewMultiWriteSyncer(stdout, zapcore.AddSync(newRotateLogger(fmt.Sprintf("%s/app.log", dir))))
+	} else {
+		ws = zapcore.AddSync(newRotateLogger(fmt.Sprintf("%s/app.log", dir)))
 	}
-
-	levels := []zapcore.Level{
-		zapcore.DebugLevel, zapcore.InfoLevel, zapcore.WarnLevel,
-		zapcore.ErrorLevel, zapcore.DPanicLevel, zapcore.PanicLevel, zapcore.FatalLevel,
-	}
-	for _, lv := range levels {
-		fileWS := zapcore.AddSync(newRotateLogger(fmt.Sprintf("%s/%s.log", dir, strings.ToLower(lv.String()))))
-		var ws zapcore.WriteSyncer
-		if withStdout {
-			ws = zapcore.NewMultiWriteSyncer(stdout, fileWS)
-		} else {
-			ws = fileWS
-		}
-		core := zapcore.NewCore(enc, ws, zap.LevelEnablerFunc(func(l zapcore.Level) bool { return l == lv }))
-		cores = append(cores, core)
-	}
+	cores = append(cores, zapcore.NewCore(enc, ws, zapcore.DebugLevel))
 	return cores
 }
 
@@ -220,8 +193,10 @@ func (z *ZapLogger) Sync() error { return z.l.Sync() }
 
 func convert(fields []logger.Field) []zap.Field {
 	var res []zap.Field
-	for _, arg := range fields {
-		res = append(res, zap.Any(arg.Key, arg.Val))
+	for _, f := range fields {
+		for k, v := range f {
+			res = append(res, zap.Any(k, v))
+		}
 	}
 	return res
 }

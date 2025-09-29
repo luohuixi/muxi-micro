@@ -1,21 +1,17 @@
 package http
 
+// Response 在使用的时候会接触到的字段
 type Response struct {
-	HttpCode int `json:"httpCode"`
-	CommonResp
+	HttpCode int    `json:"httpCode"`
+	Code     int    `json:"code"`
+	Message  string `json:"message"`
+	Data     any    `json:"data"`
 }
 
-type CommonResp struct {
+// FinalResp 最终响应的时候的实际字段
+type FinalResp struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
 	Data    any    `json:"data"`
+	LogID   string `json:"logID"`
 }
-
-type Env int8
-
-const (
-	EnvUnknown Env = iota
-	EnvDev         // 开发：彩色多行栈，仅控制台
-	EnvTest        // 测试：彩色多行栈到控制台 + JSON 到文件
-	EnvProd        // 生产：全 JSON 单行
-)
