@@ -1,4 +1,4 @@
-package ginx
+package log
 
 import (
 	"crypto/rand"
@@ -46,7 +46,7 @@ func GetLogID(ctx *gin.Context) string {
 	var logID string
 	value, ok := ctx.Get(LogIDKey)
 	if !ok {
-		// 先尝试从X-Request-ID请求头里面取
+		// 先尝试从X-Request-ID请求头里面取，如果需要用http跨服务调用的话可以考虑用这个保证整个调用链一致
 		logID = ctx.Request.Header.Get("X-Request-ID")
 		// 如果不存在则尝试去生成一个
 		if logID == "" {
