@@ -1,4 +1,4 @@
-package ginx
+package handler
 
 import (
 	"bytes"
@@ -17,40 +17,25 @@ type demoReq struct {
 	Name string `json:"name" form:"name" binding:"required"`
 }
 
-type demoClaims struct {
-	UID int64 `json:"uid"`
-}
-
-func handleDemoReq(c *gin.Context, r demoReq) t_http.Response {
-	return t_http.Response{
+func handleDemoReq(c *gin.Context, r demoReq) {
+	HandleResponse(c, t_http.Response{
 		HttpCode: http.StatusOK,
-		CommonResp: t_http.CommonResp{
-			Code:    0,
-			Message: "ok",
-			Data:    r,
-		},
-	}
+		Code:     0,
+		Message:  "ok",
+		Data:     r,
+	})
 }
 
-func handleNoBody(c *gin.Context) t_http.Response {
-	return t_http.Response{
-		HttpCode:   http.StatusOK,
-		CommonResp: t_http.CommonResp{Code: 0, Message: "pong"},
-	}
-}
-
-func mockClaimsOK(c *gin.Context) (demoClaims, error) {
-	return demoClaims{UID: 1}, nil
-}
-
-var authError = errors.New("认证失败")
-
-func mockClaimsFail(c *gin.Context) (demoClaims, error) {
-	return demoClaims{}, authError
+func handleNoBody(c *gin.Context) {
+	HandleResponse(c, t_http.Response{
+		HttpCode: http.StatusOK,
+		Code:     0,
+		Message:  "pong",
+	})
 }
 
 func decodeResp[T any](body []byte) (T, error) {
-	var resp t_http.CommonResp
+	var resp t_http.FinalResp
 	var t T
 	err := json.Unmarshal(body, &resp)
 	if err != nil {
@@ -122,7 +107,7 @@ func TestWrap(t *testing.T) {
 		g.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
-		var resp t_http.CommonResp
+		var resp t_http.FinalResp
 		_ = json.Unmarshal(w.Body.Bytes(), &resp)
 		assert.Equal(t, "pong", resp.Message)
 	})
@@ -138,33 +123,4 @@ func TestWrap(t *testing.T) {
 
 	})
 
-}
-
-func TestDefaultEngine(t *testing.T) {
-	t.Run("pprof enabled", func(t *testing.T) {
-		g := NewDefaultEngine(
-			WithEngine(gin.Default()),
-			WithEnv(t_http.EnvTest),
-		)
-		g.GET("/ping", Wrap(handleNoBody))
-		w := httptest.NewRecorder()
-		req, _ := http.NewRequest(http.MethodGet, "/debug/pprof/", nil)
-		g.ServeHTTP(w, req)
-		assert.Equal(t, http.StatusOK, w.Code)
-	})
-
-	t.Run("pprof disabled", func(t *testing.T) {
-		g := NewDefaultEngine(
-			WithEngine(gin.Default()),
-			WithEnv(t_http.EnvProd),
-		)
-		SetBindErrCode(42062)
-		SetGetClaimsErrCode(12345)
-		UseDefaultMiddleware(g)
-		g.GET("/ping", Wrap(handleNoBody))
-		w := httptest.NewRecorder()
-		req, _ := http.NewRequest(http.MethodGet, "/debug/pprof/", nil)
-		g.ServeHTTP(w, req)
-		assert.Equal(t, http.StatusNotFound, w.Code)
-	})
 }

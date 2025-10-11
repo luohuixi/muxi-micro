@@ -55,7 +55,7 @@ func TestLimiter_RateLimited(t *testing.T) {
 
 		// 第 3 次：检查限流响应
 		assert.Equal(t, http.StatusTooManyRequests, w.Code) // 429
-		var resp t_http.CommonResp
+		var resp t_http.FinalResp
 		err := json.Unmarshal(w.Body.Bytes(), &resp)
 		assert.NoError(t, err)
 
@@ -87,7 +87,7 @@ func TestLimiter_CustomOption(t *testing.T) {
 		r.ServeHTTP(w2, req2)
 		assert.Equal(t, http.StatusTooManyRequests, w2.Code)
 
-		var resp t_http.CommonResp
+		var resp t_http.FinalResp
 		_ = json.Unmarshal(w2.Body.Bytes(), &resp)
 		assert.Equal(t, 90001, resp.Code)
 		assert.Equal(t, "慢点儿~", resp.Message)
@@ -129,7 +129,7 @@ func TestLimiter_CustomOption(t *testing.T) {
 		req.Header.Set("X-Forwarded-For", "203.0.113.1")
 		r.ServeHTTP(w, req)
 
-		var resp t_http.CommonResp
+		var resp t_http.FinalResp
 		_ = json.Unmarshal(w.Body.Bytes(), &resp)
 		assert.Equal(t, 500, w.Code)
 		assert.Equal(t, DefaultCodeRateError, resp.Code)

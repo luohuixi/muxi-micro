@@ -1,10 +1,11 @@
-package ginx
+package engine
 
 import (
 	"github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"
 	"github.com/muxi-Infra/muxi-micro/pkg/logger"
-	"github.com/muxi-Infra/muxi-micro/pkg/logger/zapx"
+	"github.com/muxi-Infra/muxi-micro/pkg/logger/logx"
+	"github.com/muxi-Infra/muxi-micro/pkg/transport/http/ginx/log"
 	"github.com/muxi-Infra/muxi-micro/pkg/transport/http/ginx/middleware/cors"
 	"github.com/muxi-Infra/muxi-micro/pkg/transport/http/ginx/middleware/limiter"
 	"github.com/muxi-Infra/muxi-micro/pkg/transport/http/ginx/middleware/timeout"
@@ -27,8 +28,8 @@ func WithEnv(env static.Env) EngineOption {
 	}
 }
 
-// 手动控制gin的Engine
-func WithEngine(g *gin.Engine) EngineOption {
+// WithGinEngine 手动控制gin的Engine
+func WithGinEngine(g *gin.Engine) EngineOption {
 	return func(cfg *engineConfig) {
 		cfg.g = g
 	}
@@ -46,12 +47,12 @@ func WithLogger(l logger.Logger) EngineOption {
 }
 
 // 创建默认引擎，附带常用中间件和可选配置
-func NewDefaultEngine(opts ...EngineOption) *gin.Engine {
+func NewEngine(opts ...EngineOption) *gin.Engine {
 	cfg := &engineConfig{
 		env:  static.EnvProd,
 		g:    gin.Default(),
-		name: DefaultName,
-		l:    zapx.NewZapLogger(zapx.WithDefaultZapCore()), //如果不配置logger的话就默认使用zap
+		name: log.DefaultName,
+		l:    logx.NewStdLogger(), //如果不配置logger的话就默认使用标准输出
 	}
 
 	for _, opt := range opts {
@@ -64,8 +65,8 @@ func NewDefaultEngine(opts ...EngineOption) *gin.Engine {
 	}
 
 	cfg.g.Use(
-		GlobalLoggerMiddleware(cfg.l),
-		GlobalNameMiddleware(cfg.name),
+		log.GlobalLoggerMiddleware(cfg.l),
+		log.GlobalNameMiddleware(cfg.name),
 	)
 
 	return cfg.g

@@ -19,91 +19,31 @@ type ZapOption func(*ZapCfg)
 type ZapCfg struct {
 	core    zapcore.Core
 	options []zap.Option
+	env     static.Env
+	logDir  string
 }
 
-func NewDefaultZapLogger(logDir string, env static.Env) logger.Logger {
+func NewDefaultZapLogger() logger.Logger {
 	return NewZapLogger(
-		WithDefaultZapCore(
-			WithLogDir(logDir),
-			WithCoreEnv(env),
-		),
-		WithDefaultZapOptions(),
+		WithZapCore(NewDefaultZapCore("./logs", static.EnvProd)),
+		WithZapOptions(NewDefaultZapOptions()...),
 	)
 }
 
-func NewZapLogger(opts ...ZapOption) logger.Logger {
-	cfg := &ZapCfg{}
-	for _, opt := range opts {
-		opt(cfg)
-	}
-	if cfg.core == nil {
-		log.Panic("缺少 zap-core 核心配置")
-	}
-	return &ZapLogger{l: zap.New(cfg.core, cfg.options...)}
-}
-
-type CoreOption func(*coreCfg)
-
-type coreCfg struct {
-	env    static.Env
-	logDir string
-}
-
-func WithCoreEnv(env static.Env) CoreOption {
-	return func(cfg *coreCfg) {
+func WithCoreEnv(env static.Env) ZapOption {
+	return func(cfg *ZapCfg) {
 		cfg.env = env
 	}
 }
 
-func WithLogDir(logDir string) CoreOption {
-	return func(cfg *coreCfg) {
-		cfg.logDir = logDir
-	}
+// WithZapCore 允许自定义 core, 如果传入了会覆盖Env，logDir的配置，请注意
+func WithZapCore(core zapcore.Core) ZapOption {
+	return func(cfg *ZapCfg) { cfg.core = core }
 }
 
-func WithDefaultZapCore(opts ...CoreOption) ZapOption {
+func WithLogDir(logDir string) ZapOption {
 	return func(cfg *ZapCfg) {
-		var corecfg = coreCfg{
-			logDir: "./logs",
-			env:    static.EnvProd,
-		}
-
-		for _, opt := range opts {
-			opt(&corecfg)
-		}
-		// dev 只需要 stdout，不强制创建 logDir
-		if corecfg.env != static.EnvDev {
-			corecfg.logDir = filepath.Clean(corecfg.logDir)
-			if err := os.MkdirAll(corecfg.logDir, 0755); err != nil {
-				log.Panicf("无法创建日志目录: %v", err)
-			}
-		}
-
-		jsonEnc := zapcore.NewJSONEncoder(prodEncoderConfig())
-		consoleEnc := zapcore.NewConsoleEncoder(devEncoderConfig())
-
-		switch corecfg.env {
-		// ======== DEV：彩色到控制台 ========
-		case static.EnvDev:
-			cfg.core = zapcore.NewCore(consoleEnc, zapcore.AddSync(os.Stdout), zapcore.DebugLevel)
-			return
-
-		// ======== TEST：控制台彩色 + 文件 JSON ========
-		case static.EnvTest:
-			consoleCore := zapcore.NewCore(consoleEnc, zapcore.AddSync(os.Stdout), zapcore.DebugLevel)
-			fileCore := buildFileCores(jsonEnc, corecfg.logDir, false) // 仅文件
-			cfg.core = zapcore.NewTee(append([]zapcore.Core{consoleCore}, fileCore...)...)
-			return
-
-		// ======== PROD(默认)：全 JSON 单行 ========
-		case static.EnvProd:
-			cores := buildFileCores(jsonEnc, corecfg.logDir, true) // stdout+file 共写
-			cfg.core = zapcore.NewTee(cores...)
-
-		default:
-			log.Panic("非法的环境")
-			return
-		}
+		cfg.logDir = logDir
 	}
 }
 
@@ -112,20 +52,70 @@ func WithZapOptions(opts ...zap.Option) ZapOption {
 	return func(cfg *ZapCfg) { cfg.options = opts }
 }
 
-// 默认 Option
-func WithDefaultZapOptions() ZapOption {
-	return func(cfg *ZapCfg) {
-		cfg.options = []zap.Option{
-			zap.AddCaller(),
-			zap.AddStacktrace(zapcore.WarnLevel),
-			zap.AddCallerSkip(1),
+// 默认 core
+func NewDefaultZapCore(logDir string, env static.Env) (core zapcore.Core) {
+
+	// dev 只需要 stdout，不强制创建 logDir
+	if env != static.EnvDev {
+		logDir = filepath.Clean(logDir)
+		if err := os.MkdirAll(logDir, 0755); err != nil {
+			log.Panicf("无法创建日志目录: %v", err)
 		}
+	}
+
+	jsonEnc := zapcore.NewJSONEncoder(prodEncoderConfig())
+	consoleEnc := zapcore.NewConsoleEncoder(devEncoderConfig())
+
+	switch env {
+	// ======== DEV：彩色到控制台 ========
+	case static.EnvDev:
+		core = zapcore.NewCore(consoleEnc, zapcore.AddSync(os.Stdout), zapcore.DebugLevel)
+		return
+
+	// ======== TEST：控制台彩色 + 文件 JSON ========
+	case static.EnvTest:
+		consoleCore := zapcore.NewCore(consoleEnc, zapcore.AddSync(os.Stdout), zapcore.DebugLevel)
+		fileCore := buildFileCores(jsonEnc, logDir, false) // 仅文件
+		core = zapcore.NewTee(append([]zapcore.Core{consoleCore}, fileCore...)...)
+		return
+
+	// ======== PROD(默认)：全 JSON 单行 ========
+	case static.EnvProd:
+		cores := buildFileCores(jsonEnc, logDir, true) // stdout+file 共写
+		core = zapcore.NewTee(cores...)
+
+	default:
+		log.Panic("非法的环境")
+		return
+	}
+
+	return core
+}
+
+// 默认 Option
+func NewDefaultZapOptions() []zap.Option {
+	return []zap.Option{
+		zap.AddCaller(),
+		zap.AddStacktrace(zapcore.WarnLevel),
+		zap.AddCallerSkip(1),
 	}
 }
 
-// 允许自定义 core
-func WithZapCore(core zapcore.Core) ZapOption {
-	return func(cfg *ZapCfg) { cfg.core = core }
+func NewZapLogger(opts ...ZapOption) logger.Logger {
+	cfg := &ZapCfg{
+		logDir: "./logs",
+		env:    static.EnvProd,
+	}
+	for _, opt := range opts {
+		opt(cfg)
+	}
+
+	// 如果用户没有传入 core，则使用默认的
+	if cfg.core == nil {
+		cfg.core = NewDefaultZapCore(cfg.logDir, cfg.env)
+	}
+
+	return &ZapLogger{l: zap.New(cfg.core, cfg.options...)}
 }
 
 // 构造文件相关 core；如果 withStdout=true，则 stdout 也走同 encoder（生产）

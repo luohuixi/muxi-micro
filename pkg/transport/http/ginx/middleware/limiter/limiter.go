@@ -3,9 +3,11 @@ package limiter
 import (
 	"github.com/gin-gonic/gin"
 	t_http "github.com/muxi-Infra/muxi-micro/pkg/transport/http"
+	"github.com/muxi-Infra/muxi-micro/pkg/transport/http/ginx/handler"
 	"github.com/ulule/limiter/v3"
 	l_gin "github.com/ulule/limiter/v3/drivers/middleware/gin"
 	"github.com/ulule/limiter/v3/drivers/store/memory"
+	"net/http"
 )
 
 const (
@@ -81,19 +83,20 @@ func Limiter(opts ...Option) gin.HandlerFunc {
 	// 自定义限流返回结构
 	return l_gin.NewMiddleware(lim,
 		l_gin.WithLimitReachedHandler(func(c *gin.Context) {
-			c.AbortWithStatusJSON(429, t_http.CommonResp{
-				Message: cfg.msgRateLimited,
-				Code:    cfg.codeRateLimited,
-				Data:    nil,
-			},
-			)
+			handler.HandleResponse(c, t_http.Response{
+				HttpCode: http.StatusTooManyRequests,
+				Code:     cfg.codeRateLimited,
+				Message:  cfg.msgRateLimited,
+				Data:     nil,
+			})
 		}),
 
 		l_gin.WithErrorHandler(func(c *gin.Context, err error) {
-			c.AbortWithStatusJSON(500, t_http.CommonResp{
-				Message: cfg.msgRateError + err.Error(),
-				Code:    cfg.codeRateError,
-				Data:    nil,
+			handler.HandleResponse(c, t_http.Response{
+				HttpCode: http.StatusInternalServerError,
+				Code:     cfg.codeRateError,
+				Message:  cfg.msgRateError + err.Error(),
+				Data:     nil,
 			})
 		}),
 	)
