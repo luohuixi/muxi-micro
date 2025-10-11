@@ -2,9 +2,9 @@ package main
 
 import (
 	"errors"
+	"github.com/muxi-Infra/muxi-micro/pkg/1"
+	"github.com/muxi-Infra/muxi-micro/pkg/1/zapx"
 	"github.com/muxi-Infra/muxi-micro/pkg/errs"
-	"github.com/muxi-Infra/muxi-micro/pkg/logger"
-	"github.com/muxi-Infra/muxi-micro/pkg/logger/zapx"
 )
 
 var DBNOData = errs.NewErr("db_no_data", "db has no data")
