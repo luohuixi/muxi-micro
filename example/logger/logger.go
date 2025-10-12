@@ -2,9 +2,9 @@ package main
 
 import (
 	"errors"
-	"github.com/muxi-Infra/muxi-micro/pkg/1"
-	"github.com/muxi-Infra/muxi-micro/pkg/1/zapx"
 	"github.com/muxi-Infra/muxi-micro/pkg/errs"
+	"github.com/muxi-Infra/muxi-micro/pkg/logger"
+	"github.com/muxi-Infra/muxi-micro/pkg/logger/zapx"
 )
 
 var DBNOData = errs.NewErr("db_no_data", "db has no data")
@@ -26,13 +26,13 @@ func SearchUser(id int) error {
 }
 
 func main() {
-	l := zapx.NewDefaultZapLogger("./logs", logger.EnvTest)
+	l := zapx.NewDefaultZapLogger()
 	id := 1
 	A(id, l)
-	l.Info("查询出错id:", logger.Int("id", id))
+	l.Info("查询出错id:", logger.Field{"id": id})
 }
 
 func A(id int, l logger.Logger) {
 	err := SearchUser(id)
-	l.Error("查询数据库出错:", logger.Error(err))
+	l.Error("查询数据库出错:" + err.Error())
 }
