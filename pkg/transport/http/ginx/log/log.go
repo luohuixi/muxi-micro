@@ -1,6 +1,7 @@
 package log
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha1"
 	"encoding/hex"
@@ -11,10 +12,11 @@ import (
 )
 
 const (
-	LogIDKey    = "Gin-LogID"
-	LoggerKey   = "Gin-Logger"
-	NameKey     = "Gin-Name"
-	DefaultName = "unknown"
+	LogIDKey     = "Gin-LogID"
+	LoggerKey    = "Gin-Logger"
+	NameKey      = "Gin-Name"
+	DefaultName  = "unknown"
+	DefaultLogID = "without logID"
 )
 
 // 生成日志 ID
@@ -41,21 +43,13 @@ func SetLogID(ctx *gin.Context, logID string) {
 	ctx.Set(LogIDKey, logID)
 }
 
-// 设置到响应中需要
-func GetLogID(ctx *gin.Context) string {
-	var logID string
-	value, ok := ctx.Get(LogIDKey)
+// 为了保证获取的便利性这里用的是context.Context
+func GetLogID(ctx context.Context) string {
+	value, ok := ctx.Value(LogIDKey).(string)
 	if !ok {
-		// 先尝试从X-Request-ID请求头里面取，如果需要用http跨服务调用的话可以考虑用这个保证整个调用链一致
-		logID = ctx.Request.Header.Get("X-Request-ID")
-		// 如果不存在则尝试去生成一个
-		if logID == "" {
-			logID = genLogID(GetGlobalName(ctx))
-		}
-		SetLogID(ctx, logID)
-		return logID
+		return DefaultLogID
 	}
-	return value.(string)
+	return value
 }
 
 // 用于设置在上下文中获取携带了特殊信息的日志,主动打印需要
@@ -64,18 +58,24 @@ func SetLogger(ctx *gin.Context, logger logger.Logger) {
 }
 
 // 用于获取在上下文中获取携带了特殊信息的日志
-func GetLogger(ctx *gin.Context) logger.Logger {
-	ginLogger, ok := ctx.Get(LoggerKey)
+func GetLogger(ctx context.Context) logger.Logger {
+	ginLogger, ok := ctx.Value(LoggerKey).(logger.Logger)
 	if !ok {
 		return nil // 如果不存在需要返回一个空指针
 	}
-	return ginLogger.(logger.Logger)
+	return ginLogger
 }
 
 func GlobalLoggerMiddleware(l logger.Logger) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
+		logID := ctx.Request.Header.Get("X-Request-ID")
+		if logID == "" {
+			logID = genLogID(GetGlobalName(ctx)) // 如果不存在则尝试去生成一个
+		}
+
+		SetLogID(ctx, logID)
 		l = l.With(logger.Field{
-			"logID": GetLogID(ctx), // 保证ctx中的所有日志都是自带logID的
+			"logID": logID, // 保证ctx中的所有日志都是自带logID的
 		})
 		SetLogger(ctx, l)
 	}
@@ -87,10 +87,10 @@ func GlobalNameMiddleware(name string) gin.HandlerFunc {
 	}
 }
 
-func GetGlobalName(ctx *gin.Context) string {
-	value, ok := ctx.Get(NameKey)
+func GetGlobalName(ctx context.Context) string {
+	value, ok := ctx.Value(NameKey).(string)
 	if !ok {
 		return DefaultName
 	}
-	return value.(string)
+	return value
 }

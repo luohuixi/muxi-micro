@@ -12,7 +12,9 @@ import (
 	"path/filepath"
 )
 
-type ZapLogger struct{ l *zap.Logger }
+type ZapLogger struct {
+	l *zap.Logger
+}
 
 type ZapOption func(*ZapCfg)
 
