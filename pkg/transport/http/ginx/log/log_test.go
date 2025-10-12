@@ -44,6 +44,7 @@ func TestSetAndGetLogID(t *testing.T) {
 func TestAutoGenerateLogID(t *testing.T) {
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 	ctx.Request = httptest.NewRequest("GET", "/", nil)
+	SetLogID(ctx, genLogID(GetGlobalName(ctx)))
 	id := GetLogID(ctx)
 	if id == "" {
 		t.Errorf("expected auto-generated logID, got empty")
