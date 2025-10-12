@@ -19,7 +19,7 @@ func setupRouterWithTimeout(handlerFunc gin.HandlerFunc) *gin.Engine {
 	r.Use(handlerFunc)
 
 	r.GET("/normal", func(c *gin.Context) {
-		c.JSON(http.StatusOK, t_http.CommonResp{
+		c.JSON(http.StatusOK, t_http.FinalResp{
 			Code:    0,
 			Message: "OK",
 			Data:    "success",
@@ -28,7 +28,7 @@ func setupRouterWithTimeout(handlerFunc gin.HandlerFunc) *gin.Engine {
 
 	r.GET("/sleep", func(c *gin.Context) {
 		time.Sleep(2 * time.Second)
-		c.JSON(http.StatusOK, t_http.CommonResp{
+		c.JSON(http.StatusOK, t_http.FinalResp{
 			Code:    0,
 			Message: "OK",
 			Data:    "should timeout",
@@ -58,7 +58,7 @@ func TestTimeoutMiddleware(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/sleep", nil)
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
-		var resp t_http.CommonResp
+		var resp t_http.FinalResp
 		err := json.Unmarshal(w.Body.Bytes(), &resp)
 		if err != nil {
 			t.Fatal(err)

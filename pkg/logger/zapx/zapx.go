@@ -3,13 +3,13 @@ package zapx
 import (
 	"fmt"
 	"github.com/muxi-Infra/muxi-micro/pkg/logger"
+	"github.com/muxi-Infra/muxi-micro/static"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 type ZapLogger struct{ l *zap.Logger }
@@ -19,99 +19,31 @@ type ZapOption func(*ZapCfg)
 type ZapCfg struct {
 	core    zapcore.Core
 	options []zap.Option
+	env     static.Env
+	logDir  string
 }
 
-func NewDefaultZapLogger(logDir string, env logger.Env) logger.Logger {
+func NewDefaultZapLogger() logger.Logger {
 	return NewZapLogger(
-		WithDefaultZapCore(
-			WithLogDir(logDir),
-			WithCoreEnv(env),
-		),
-		WithDefaultZapOptions(),
+		WithZapCore(NewDefaultZapCore("./logs", static.EnvProd)),
+		WithZapOptions(NewDefaultZapOptions()...),
 	)
 }
 
-func NewZapLogger(opts ...ZapOption) logger.Logger {
-	cfg := &ZapCfg{}
-	for _, opt := range opts {
-		opt(cfg)
-	}
-	if cfg.core == nil {
-		log.Panic("缺少 zap-core 核心配置")
-	}
-	return &ZapLogger{l: zap.New(cfg.core, cfg.options...)}
-}
-
-type CoreOption func(*coreCfg)
-
-type coreCfg struct {
-	env          logger.Env
-	splitByLevel bool
-	logDir       string
-}
-
-func WithCoreEnv(env logger.Env) CoreOption {
-	return func(cfg *coreCfg) {
+func WithCoreEnv(env static.Env) ZapOption {
+	return func(cfg *ZapCfg) {
 		cfg.env = env
 	}
 }
 
-func WithCoreSplit(splitByLevel bool) CoreOption {
-	return func(cfg *coreCfg) {
-		cfg.splitByLevel = splitByLevel
-	}
+// WithZapCore 允许自定义 core, 如果传入了会覆盖Env，logDir的配置，请注意
+func WithZapCore(core zapcore.Core) ZapOption {
+	return func(cfg *ZapCfg) { cfg.core = core }
 }
 
-func WithLogDir(logDir string) CoreOption {
-	return func(cfg *coreCfg) {
-		cfg.logDir = logDir
-	}
-}
-
-func WithDefaultZapCore(opts ...CoreOption) ZapOption {
+func WithLogDir(logDir string) ZapOption {
 	return func(cfg *ZapCfg) {
-		var corecfg = coreCfg{
-			splitByLevel: false,
-			logDir:       "./logs",
-			env:          logger.EnvProd,
-		}
-
-		for _, opt := range opts {
-			opt(&corecfg)
-		}
-		// dev 只需要 stdout，不强制创建 logDir
-		if corecfg.env != logger.EnvDev {
-			corecfg.logDir = filepath.Clean(corecfg.logDir)
-			if err := os.MkdirAll(corecfg.logDir, 0755); err != nil {
-				log.Panicf("无法创建日志目录: %v", err)
-			}
-		}
-
-		jsonEnc := zapcore.NewJSONEncoder(prodEncoderConfig())
-		consoleEnc := zapcore.NewConsoleEncoder(devEncoderConfig())
-
-		switch corecfg.env {
-		// ======== DEV：彩色到控制台 ========
-		case logger.EnvDev:
-			cfg.core = zapcore.NewCore(consoleEnc, zapcore.AddSync(os.Stdout), zapcore.DebugLevel)
-			return
-
-		// ======== TEST：控制台彩色 + 文件 JSON ========
-		case logger.EnvTest:
-			consoleCore := zapcore.NewCore(consoleEnc, zapcore.AddSync(os.Stdout), zapcore.DebugLevel)
-			fileCore := buildFileCores(jsonEnc, corecfg.splitByLevel, corecfg.logDir, false) // 仅文件
-			cfg.core = zapcore.NewTee(append([]zapcore.Core{consoleCore}, fileCore...)...)
-			return
-
-		// ======== PROD(默认)：全 JSON 单行 ========
-		case logger.EnvProd:
-			cores := buildFileCores(jsonEnc, corecfg.splitByLevel, corecfg.logDir, true) // stdout+file 共写
-			cfg.core = zapcore.NewTee(cores...)
-
-		default:
-			log.Panic("非法的环境")
-			return
-		}
+		cfg.logDir = logDir
 	}
 }
 
@@ -120,53 +52,84 @@ func WithZapOptions(opts ...zap.Option) ZapOption {
 	return func(cfg *ZapCfg) { cfg.options = opts }
 }
 
-// 默认 Option
-func WithDefaultZapOptions() ZapOption {
-	return func(cfg *ZapCfg) {
-		cfg.options = []zap.Option{
-			zap.AddCaller(),
-			zap.AddStacktrace(zapcore.WarnLevel),
-			zap.AddCallerSkip(1),
+// 默认 core
+func NewDefaultZapCore(logDir string, env static.Env) (core zapcore.Core) {
+
+	// dev 只需要 stdout，不强制创建 logDir
+	if env != static.EnvDev {
+		logDir = filepath.Clean(logDir)
+		if err := os.MkdirAll(logDir, 0755); err != nil {
+			log.Panicf("无法创建日志目录: %v", err)
 		}
+	}
+
+	jsonEnc := zapcore.NewJSONEncoder(prodEncoderConfig())
+	consoleEnc := zapcore.NewConsoleEncoder(devEncoderConfig())
+
+	switch env {
+	// ======== DEV：彩色到控制台 ========
+	case static.EnvDev:
+		core = zapcore.NewCore(consoleEnc, zapcore.AddSync(os.Stdout), zapcore.DebugLevel)
+		return
+
+	// ======== TEST：控制台彩色 + 文件 JSON ========
+	case static.EnvTest:
+		consoleCore := zapcore.NewCore(consoleEnc, zapcore.AddSync(os.Stdout), zapcore.DebugLevel)
+		fileCore := buildFileCores(jsonEnc, logDir, false) // 仅文件
+		core = zapcore.NewTee(append([]zapcore.Core{consoleCore}, fileCore...)...)
+		return
+
+	// ======== PROD(默认)：全 JSON 单行 ========
+	case static.EnvProd:
+		cores := buildFileCores(jsonEnc, logDir, true) // stdout+file 共写
+		core = zapcore.NewTee(cores...)
+
+	default:
+		log.Panic("非法的环境")
+		return
+	}
+
+	return core
+}
+
+// 默认 Option
+func NewDefaultZapOptions() []zap.Option {
+	return []zap.Option{
+		zap.AddCaller(),
+		zap.AddStacktrace(zapcore.WarnLevel),
+		zap.AddCallerSkip(1),
 	}
 }
 
-// 允许自定义 core
-func WithZapCore(core zapcore.Core) ZapOption {
-	return func(cfg *ZapCfg) { cfg.core = core }
+func NewZapLogger(opts ...ZapOption) logger.Logger {
+	cfg := &ZapCfg{
+		logDir: "./logs",
+		env:    static.EnvProd,
+	}
+	for _, opt := range opts {
+		opt(cfg)
+	}
+
+	// 如果用户没有传入 core，则使用默认的
+	if cfg.core == nil {
+		cfg.core = NewDefaultZapCore(cfg.logDir, cfg.env)
+	}
+
+	return &ZapLogger{l: zap.New(cfg.core, cfg.options...)}
 }
 
 // 构造文件相关 core；如果 withStdout=true，则 stdout 也走同 encoder（生产）
-func buildFileCores(enc zapcore.Encoder, split bool, dir string, withStdout bool) []zapcore.Core {
+func buildFileCores(enc zapcore.Encoder, dir string, withStdout bool) []zapcore.Core {
 	var cores []zapcore.Core
 	stdout := zapcore.AddSync(os.Stdout)
 
-	if !split {
-		var ws zapcore.WriteSyncer
-		if withStdout {
-			ws = zapcore.NewMultiWriteSyncer(stdout, zapcore.AddSync(newRotateLogger(fmt.Sprintf("%s/app.log", dir))))
-		} else {
-			ws = zapcore.AddSync(newRotateLogger(fmt.Sprintf("%s/app.log", dir)))
-		}
-		cores = append(cores, zapcore.NewCore(enc, ws, zapcore.DebugLevel))
-		return cores
+	var ws zapcore.WriteSyncer
+	if withStdout {
+		ws = zapcore.NewMultiWriteSyncer(stdout, zapcore.AddSync(newRotateLogger(fmt.Sprintf("%s/app.log", dir))))
+	} else {
+		ws = zapcore.AddSync(newRotateLogger(fmt.Sprintf("%s/app.log", dir)))
 	}
-
-	levels := []zapcore.Level{
-		zapcore.DebugLevel, zapcore.InfoLevel, zapcore.WarnLevel,
-		zapcore.ErrorLevel, zapcore.DPanicLevel, zapcore.PanicLevel, zapcore.FatalLevel,
-	}
-	for _, lv := range levels {
-		fileWS := zapcore.AddSync(newRotateLogger(fmt.Sprintf("%s/%s.log", dir, strings.ToLower(lv.String()))))
-		var ws zapcore.WriteSyncer
-		if withStdout {
-			ws = zapcore.NewMultiWriteSyncer(stdout, fileWS)
-		} else {
-			ws = fileWS
-		}
-		core := zapcore.NewCore(enc, ws, zap.LevelEnablerFunc(func(l zapcore.Level) bool { return l == lv }))
-		cores = append(cores, core)
-	}
+	cores = append(cores, zapcore.NewCore(enc, ws, zapcore.DebugLevel))
 	return cores
 }
 
@@ -220,8 +183,10 @@ func (z *ZapLogger) Sync() error { return z.l.Sync() }
 
 func convert(fields []logger.Field) []zap.Field {
 	var res []zap.Field
-	for _, arg := range fields {
-		res = append(res, zap.Any(arg.Key, arg.Val))
+	for _, f := range fields {
+		for k, v := range f {
+			res = append(res, zap.Any(k, v))
+		}
 	}
 	return res
 }
