@@ -23,32 +23,35 @@ func main() {
 		engine.WithEnv(static.EnvDev),
 	)
 
-	// 1. 注册不需要请求体和用户认证的路由
-	router.GET("/ping", handler.Wrap(func(ctx *gin.Context) t_http.Response {
-		return t_http.Response{
+	// 1. 注册不需要请求体
+	router.GET("/ping", handler.Wrap(func(ctx *gin.Context) {
+
+		handler.HandleResponse(ctx, t_http.Response{
 			HttpCode: http.StatusOK,
 			Code:     0,
 			Message:  "pong",
 			Data:     nil,
-		}
+		})
 	}))
 
-	// 2. 注册需要请求体但不需要用户认证的路由
-	router.POST("/login", handler.WrapReq(func(ctx *gin.Context, req LoginRequest) t_http.Response {
+	// 2. 注册需要请求体
+	router.POST("/login", handler.WrapReq(func(ctx *gin.Context, req LoginRequest) {
 		// 模拟登录逻辑
 		if req.Username == "admin" && req.Password == "123456" {
-			return t_http.Response{
+			handler.HandleResponse(ctx, t_http.Response{
 				HttpCode: http.StatusOK,
 				Message:  "登录成功",
 				Data:     "token-string",
-			}
+			})
+			return
 		}
-		return t_http.Response{
+		handler.HandleResponse(ctx, t_http.Response{
 			HttpCode: http.StatusUnauthorized,
 			Code:     40100,
 			Message:  "用户名或密码错误",
 			Data:     nil,
-		}
+		})
+		return
 	}))
 
 	router.Run("0.0.0.0:8080")
