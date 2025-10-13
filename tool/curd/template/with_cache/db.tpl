@@ -1,6 +1,6 @@
 {{- define "db" -}}
 func (u *{{.ModelName}}Exec) Create(ctx context.Context, data *{{.ModelName}}) error {
-	err := u.Exec.Create(ctx, data, {{.ModelName}}{})
+	err := u.exec.Create(ctx, data, {{.ModelName}}{})
 	if err != nil {
 		return err
 	}
@@ -15,8 +15,8 @@ func (u *{{.ModelName}}Exec) FindOne(ctx context.Context, {{.Pr}} int64) (*{{.Mo
 		return datacache, nil
 	}
 	var data {{.ModelName}}
-	u.Exec.Model.Where("{{.Pr}} = ?", {{.Pr}})
-	err := u.Exec.Find(ctx, &data, {{.ModelName}}{})
+	u.exec.Model.Where("{{.Pr}} = ?", {{.Pr}})
+	err := u.exec.Find(ctx, &data, {{.ModelName}}{})
 	if err != nil {
 		return nil, err
 	}
@@ -38,8 +38,8 @@ func (u *{{$outer.ModelName}}Exec) FindBy{{$notpr.Name}}(ctx context.Context, {{
 		return datascache, nil
 	}
 	var datas []{{$outer.ModelName}}
-	u.Exec.Model.Where("{{$notpr.Name}} = ?", {{$notpr.Name}})
-	err = u.Exec.Find(ctx, &datas, {{$outer.ModelName}}{})
+	u.exec.Model.Where("{{$notpr.Name}} = ?", {{$notpr.Name}})
+	err = u.exec.Find(ctx, &datas, {{$outer.ModelName}}{})
 	if err != nil {
 		return nil, err
 	}
@@ -52,8 +52,8 @@ func (u *{{$outer.ModelName}}Exec) FindBy{{$notpr.Name}}(ctx context.Context, {{
 {{- end}}
 
 func (u *{{.ModelName}}Exec) Update(ctx context.Context, data *{{.ModelName}}) error {
-	u.Exec.Model.Where("id = ?", data.{{.Pr}})
-	err := u.Exec.Update(ctx, data, {{.ModelName}}{})
+	u.exec.Model.Where("id = ?", data.{{.Pr}})
+	err := u.exec.Update(ctx, data, {{.ModelName}}{})
 	if err != nil {
 		return err
 	}
@@ -68,7 +68,7 @@ func (u *{{.ModelName}}Exec) Delete(ctx context.Context, id int64) error {
 		return err
 	}
 	data = *d
-	err = u.Exec.Delete(ctx, &data, {{.ModelName}}{})
+	err = u.exec.Delete(ctx, &data, {{.ModelName}}{})
 	if err != nil {
 		return err
 	}

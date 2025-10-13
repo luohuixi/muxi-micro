@@ -1,23 +1,23 @@
 package curd
 
 import (
-	"github.com/stretchr/testify/assert"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestCurdError(t *testing.T) {
 	t.Run("can not find model.go", func(t *testing.T) {
-		tempDir, _ := ioutil.TempDir("", "curd_no_model_test")
+		tempDir, _ := os.MkdirTemp("", "curd_no_model_test")
 		defer os.RemoveAll(tempDir)
 
 		curdCmd := InitCurdCobra()
 
 		var output strings.Builder
-		curdCmd.SetOutput(&output)
+		curdCmd.SetOut(&output)
 		curdCmd.SetArgs([]string{
 			"--dir", tempDir,
 		})
@@ -29,7 +29,7 @@ func TestCurdError(t *testing.T) {
 	})
 
 	t.Run("no primary key in model.go", func(t *testing.T) {
-		tempDir, _ := ioutil.TempDir("", "curd_error_model_test")
+		tempDir, _ := os.MkdirTemp("", "curd_error_model_test")
 		defer os.RemoveAll(tempDir)
 		modelPath := filepath.Join(tempDir, "model.go")
 		modelContent := `package model
@@ -39,10 +39,10 @@ type User struct {
 	Name string ` + "`gorm:\"index\"`" + `
 }
 `
-		_ = ioutil.WriteFile(modelPath, []byte(modelContent), 0644)
+		_ = os.WriteFile(modelPath, []byte(modelContent), 0644)
 		var output strings.Builder
 		curdCmd := InitCurdCobra()
-		curdCmd.SetOutput(&output)
+		curdCmd.SetOut(&output)
 		curdCmd.SetArgs([]string{
 			"--dir", tempDir,
 		})
@@ -52,7 +52,7 @@ type User struct {
 	})
 
 	t.Run("too many primary key in model.go", func(t *testing.T) {
-		tempDir, _ := ioutil.TempDir("", "curd_error_model_test")
+		tempDir, _ := os.MkdirTemp("", "curd_error_model_test")
 		defer os.RemoveAll(tempDir)
 		modelPath := filepath.Join(tempDir, "model.go")
 		modelContent := `package model
@@ -62,10 +62,10 @@ type User struct {
 	Name string ` + "`gorm:\"primaryKey;autoIncrement\"`" + `
 }
 `
-		_ = ioutil.WriteFile(modelPath, []byte(modelContent), 0644)
+		_ = os.WriteFile(modelPath, []byte(modelContent), 0644)
 		var output strings.Builder
 		curdCmd := InitCurdCobra()
-		curdCmd.SetOutput(&output)
+		curdCmd.SetOut(&output)
 		curdCmd.SetArgs([]string{
 			"--dir", tempDir,
 		})
@@ -75,7 +75,7 @@ type User struct {
 	})
 
 	t.Run("not correct type primary key in model.go", func(t *testing.T) {
-		tempDir, _ := ioutil.TempDir("", "curd_error_model_test")
+		tempDir, _ := os.MkdirTemp("", "curd_error_model_test")
 		defer os.RemoveAll(tempDir)
 		modelPath := filepath.Join(tempDir, "model.go")
 		modelContent := `package model
@@ -85,10 +85,10 @@ type User struct {
 	Name string
 }
 `
-		_ = ioutil.WriteFile(modelPath, []byte(modelContent), 0644)
+		_ = os.WriteFile(modelPath, []byte(modelContent), 0644)
 		var output strings.Builder
 		curdCmd := InitCurdCobra()
-		curdCmd.SetOutput(&output)
+		curdCmd.SetOut(&output)
 		curdCmd.SetArgs([]string{
 			"--dir", tempDir,
 		})

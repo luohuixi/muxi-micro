@@ -30,7 +30,7 @@ type {{.ModelName}}Model interface {
 }
 
 type {{.ModelName}}Exec struct {
-    Exec      *sql.Execute
+    exec      *sql.Execute
     cacheExec *sql.CacheExecute
     logger    logger.Logger
 }
@@ -38,7 +38,7 @@ type {{.ModelName}}Exec struct {
 func New{{.ModelName}}Model(db *gorm.DB, cache *sql.CacheExecute, logger logger.Logger) *{{.ModelName}}Exec {
     exec := sql.NewExecute(db)
     return &{{.ModelName}}Exec{
-        Exec:      exec,
+        exec:      exec,
         cacheExec: cache,
         logger:    logger,
     }

@@ -3,6 +3,7 @@ package {{.PackageName}}
 
 import (
 	"github.com/muxi-Infra/muxi-micro/pkg/sql"
+	"gorm.io/gorm"
 )
 
 var _ {{.ModelName}}Models = (*Extra{{.ModelName}}Exec)(nil)
@@ -14,6 +15,7 @@ type {{.ModelName}}Models interface {
 
 type Extra{{.ModelName}}Exec struct {
 	*{{.ModelName}}Exec
+	db *gorm.DB
 }
 
 func New{{.ModelName}}Models(DBdsn string) ({{.ModelName}}Models, error) {
@@ -25,9 +27,12 @@ func New{{.ModelName}}Models(DBdsn string) ({{.ModelName}}Models, error) {
 
 	return &Extra{{.ModelName}}Exec{
 		instance,
+		db,
 	}, nil
 }
 
 // 可以在这里添加额外的方法实现
-// func (e *Extra{{.ModelName}}Exec) ...
+// func (e *Extra{{.ModelName}}Exec) Example() {
+//     e.db.Where().Find()
+// }
 {{- end -}}

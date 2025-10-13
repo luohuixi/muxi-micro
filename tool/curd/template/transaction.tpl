@@ -22,18 +22,34 @@ func NewTranExec(dsn string) (*TranExec, error) {
 		return nil, err
 	}
 	exec := sql.NewExecute(db)
-	return &TranExec{exec}, nil
+	return &TranExec{
+    	exec,
+    	//nil,
+    	//nil,
+    }, nil
 }
 
-func (t *TranExec) Transaction(ctx context.Context, fn func(*TranExec, context.Context) error) error {
+func (t *TranExec) Transaction(ctx context.Context, fn func(context.Context, *TranExec) error) error {
 	return t.exec.Transaction(func(tx *gorm.DB) error {
 		exec := sql.NewExecute(tx)
+		//userexec := &UserExec{
+        //	exec: exec,
+        //}
+        //orderexec := &OrderExec{
+        //	exec: exec,
+        //}
 		tran := &TranExec{
 			exec: exec,
-			//u: &UserExec{Exec: exec},
-			//o: &OrderExec{Exec: exec},
+			//u: &ExtraUserExec{
+            //	UserExec: userexec,
+            //	db: tx,
+            //},
+            //o: &ExtraOrderExec{
+            //	OrderExec: orderexec,
+            //	db: tx,
+            //},
 		}
-		return fn(tran, ctx)
+		return fn(ctx, tran)
 	})
 }
 {{- end -}}

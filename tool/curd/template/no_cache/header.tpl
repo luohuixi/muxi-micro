@@ -20,13 +20,13 @@ type {{.ModelName}}Model interface {
 }
 
 type {{.ModelName}}Exec struct {
-    Exec      *sql.Execute
+    exec      *sql.Execute
 }
 
 func New{{.ModelName}}Model(db *gorm.DB) *{{.ModelName}}Exec {
     exec := sql.NewExecute(db)
     return &{{.ModelName}}Exec{
-        Exec:      exec,
+        exec:      exec,
     }
 }
 
