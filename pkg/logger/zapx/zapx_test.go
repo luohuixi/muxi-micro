@@ -1,22 +1,21 @@
 package zapx
 
 import (
-	"errors"
 	"fmt"
+	"github.com/muxi-Infra/muxi-micro/pkg/logger"
+	"github.com/muxi-Infra/muxi-micro/static"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"os"
 	"path/filepath"
 	"testing"
-
-	"github.com/muxi-Infra/muxi-micro/pkg/logger"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 )
 
 func TestNewDefaultZapLogger_AllEnv(t *testing.T) {
-	envs := []logger.Env{logger.EnvDev, logger.EnvTest, logger.EnvProd}
+	envs := []static.Env{static.EnvDev, static.EnvTest, static.EnvProd}
 	for _, env := range envs {
 		t.Run(fmt.Sprintf("%v", env), func(t *testing.T) {
-			l := NewDefaultZapLogger("./logs/test_default", env)
+			l := NewDefaultZapLogger()
 			if l == nil {
 				t.Errorf("NewDefaultZapLogger 返回空")
 			}
@@ -33,7 +32,6 @@ func TestNewZapLogger_CustomCore(t *testing.T) {
 	)
 	l := NewZapLogger(
 		WithZapCore(core),
-		WithDefaultZapOptions(),
 	)
 	if l == nil {
 		t.Fatal("自定义 core 创建失败")
@@ -41,46 +39,30 @@ func TestNewZapLogger_CustomCore(t *testing.T) {
 	logAll(l)
 }
 
-func TestNewZapLogger_WithOutCore(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("core为nil未触发 panic")
-		}
-	}()
-
-	NewZapLogger()
-}
-
 func TestNewZapLogger_CustomOptions(t *testing.T) {
-	core := zapcore.NewCore(
-		zapcore.NewConsoleEncoder(devEncoderConfig()),
-		zapcore.AddSync(os.Stdout),
-		zapcore.InfoLevel,
-	)
+
 	opts := []zap.Option{zap.AddCaller(), zap.AddCallerSkip(2)}
 	l := NewZapLogger(
-		WithZapCore(core),
+		WithCoreEnv(static.EnvTest),
+		WithLogDir("./logs/custom_options"),
 		WithZapOptions(opts...),
 	)
 	if l == nil {
 		t.Fatal("自定义 options 创建失败")
 	}
 	logAll(l)
-
 }
 
 func TestWithDefaultZapCore_CreatesLogDir(t *testing.T) {
 	dir := "./logs/test_create_dir"
 	_ = os.RemoveAll(dir)
 
-	opt := WithDefaultZapCore(
-		WithCoreEnv(logger.EnvTest),
-		WithCoreSplit(false),
-		WithLogDir(dir),
+	core := NewDefaultZapCore(
+		dir,
+		static.EnvTest,
 	)
-	cfg := &ZapCfg{}
-	opt(cfg)
 
+	NewZapLogger(WithZapCore(core))
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		t.Errorf("日志目录未创建: %v", dir)
 	}
@@ -93,9 +75,8 @@ func TestWithDefaultZapCore_IllegalEnv(t *testing.T) {
 		}
 	}()
 
-	opt := WithDefaultZapCore(WithCoreSplit(true), WithLogDir("./logs/illegal"), WithCoreEnv(logger.Env(99)))
-	cfg := &ZapCfg{}
-	opt(cfg)
+	core := NewDefaultZapCore("./logs/illegal", static.Env(99))
+	NewZapLogger(WithZapCore(core))
 }
 
 func TestWithZapCore_OverridesPrevious(t *testing.T) {
@@ -126,10 +107,8 @@ func TestWithZapOptions_AppendsOptions(t *testing.T) {
 func TestLogDirClean(t *testing.T) {
 	// 测试 logDir clean 是否去除末尾斜杠
 	logDir := "./logs/clean-test////"
-	opt := WithDefaultZapCore(WithCoreSplit(true), WithLogDir(logDir), WithCoreEnv(logger.EnvTest))
-	cfg := &ZapCfg{}
-	opt(cfg)
-
+	core := NewDefaultZapCore(logDir, static.EnvTest)
+	NewZapLogger(WithZapCore(core))
 	cleaned := filepath.Clean(logDir)
 	if _, err := os.Stat(cleaned); os.IsNotExist(err) {
 		t.Errorf("clean 后目录未创建: %s", cleaned)
@@ -138,17 +117,20 @@ func TestLogDirClean(t *testing.T) {
 
 func logAll(l logger.Logger) {
 
-	l.With(logger.String("all", "everyLog"))
+	l.With(logger.Field{
+		"string": "string",
+		"int":    1,
+	})
+
 	l.Info("test",
-		logger.Int("1", 1),
-		logger.Int32("1", 1),
-		logger.Int64("1", 1),
-		logger.Any("1", 1),
-		logger.Error(errors.New("1234")),
+		logger.Field{
+			"string": "string",
+			"int":    1,
+		},
 	)
 
-	l.Debug("test", logger.Int("1", 1))
-	l.Warn("test", logger.Int("1", 1))
-	l.Error("test", logger.Int("1", 1))
+	l.Debug("test")
+	l.Warn("test")
+	l.Error("test")
 	l.Sync()
 }

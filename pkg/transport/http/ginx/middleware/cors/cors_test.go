@@ -1,6 +1,6 @@
 package cors
 
-// TODO 测试可用性，没弄明白怎么用代码测试跨域问题,现在的
+// TODO 测试可用性，没弄明白怎么用代码测试跨域问题,现在的只测试了配置项
 import (
 	"github.com/stretchr/testify/assert"
 	"testing"

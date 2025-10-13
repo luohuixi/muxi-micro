@@ -4,6 +4,8 @@ import (
 	"github.com/gin-contrib/timeout"
 	"github.com/gin-gonic/gin"
 	t_http "github.com/muxi-Infra/muxi-micro/pkg/transport/http"
+	"github.com/muxi-Infra/muxi-micro/pkg/transport/http/ginx/handler"
+	"net/http"
 	"time"
 )
 
@@ -59,10 +61,11 @@ func Timeout(opts ...Option) gin.HandlerFunc {
 		}),
 
 		timeout.WithResponse(func(c *gin.Context) {
-			c.JSON(504, t_http.CommonResp{
-				Code:    cfg.code,
-				Message: cfg.message,
-				Data:    nil,
+			handler.HandleResponse(c, t_http.Response{
+				HttpCode: http.StatusGatewayTimeout,
+				Code:     cfg.code,
+				Message:  cfg.message,
+				Data:     nil,
 			})
 		}),
 	)
