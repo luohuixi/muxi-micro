@@ -1,20 +1,10 @@
 package main
 
 import (
-	"github.com/muxi-Infra/muxi-micro/pkg/transport/http/ginx/engine"
-	"github.com/muxi-Infra/muxi-micro/pkg/transport/http/ginx/handler"
-	"github.com/muxi-Infra/muxi-micro/static"
-	"net/http"
-
 	"github.com/gin-gonic/gin"
-	t_http "github.com/muxi-Infra/muxi-micro/pkg/transport/http"
+	"github.com/muxi-Infra/muxi-micro/pkg/transport/http/ginx/engine"
+	"github.com/muxi-Infra/muxi-micro/static"
 )
-
-// 定义请求和响应结构体
-type LoginRequest struct {
-	Username string `json:"username" binding:"required"`
-	Password string `json:"password" binding:"required"`
-}
 
 func main() {
 	g := gin.Default()
@@ -22,37 +12,6 @@ func main() {
 	router := engine.NewEngine(
 		engine.WithEnv(static.EnvDev),
 	)
-
-	// 1. 注册不需要请求体
-	router.GET("/ping", handler.Wrap(func(ctx *gin.Context) {
-
-		handler.HandleResponse(ctx, t_http.Response{
-			HttpCode: http.StatusOK,
-			Code:     0,
-			Message:  "pong",
-			Data:     nil,
-		})
-	}))
-
-	// 2. 注册需要请求体
-	router.POST("/login", handler.WrapReq(func(ctx *gin.Context, req LoginRequest) {
-		// 模拟登录逻辑
-		if req.Username == "admin" && req.Password == "123456" {
-			handler.HandleResponse(ctx, t_http.Response{
-				HttpCode: http.StatusOK,
-				Message:  "登录成功",
-				Data:     "token-string",
-			})
-			return
-		}
-		handler.HandleResponse(ctx, t_http.Response{
-			HttpCode: http.StatusUnauthorized,
-			Code:     40100,
-			Message:  "用户名或密码错误",
-			Data:     nil,
-		})
-		return
-	}))
 
 	router.Run("0.0.0.0:8080")
 }

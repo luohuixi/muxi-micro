@@ -31,46 +31,6 @@ func Bind(ctx *gin.Context, req any) error {
 	return nil
 }
 
-// WrapReq 。用于处理有请求体的请求
-// ctx表示上下文,req表示请求结构体
-func WrapReq[Req any](fn func(*gin.Context, Req)) gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-		//检查前置中间件是否存在错误,如果存在应当直接返回
-		if len(ctx.Errors) > 0 {
-			return
-		}
-		//解析参数
-		var req Req
-		err := Bind(ctx, &req)
-		if err != nil {
-			HandleResponse(ctx, t_http.Response{
-				HttpCode: http.StatusBadRequest,
-				Code:     DefaultBindErrCode,
-				Message:  "非法的参数: " + err.Error(),
-				Data:     nil,
-			})
-			return
-		}
-		// 调用业务逻辑函数
-		fn(ctx, req)
-		return
-	}
-}
-
-// Wrap 。用于处理没有请求体的请求
-// ctx表示上下文
-func Wrap(fn func(*gin.Context)) gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-		//检查前置中间件是否存在错误,如果存在应当直接返回
-		if len(ctx.Errors) > 0 {
-			return
-		}
-		// 调用业务逻辑函数
-		fn(ctx)
-		return
-	}
-}
-
 // HandleResponse 处理需要自定义业务码的请求
 func HandleResponse(ctx *gin.Context, resp t_http.Response) {
 	finalResp := t_http.FinalResp{
@@ -89,5 +49,13 @@ func HandleSuccessResponseWithData(ctx *gin.Context, data any) {
 		Code:    http.StatusOK,
 		Message: "success",
 		Data:    data,
+	})
+}
+
+// HandleSuccessResponse 快速处理成功响应
+func HandleSuccessResponse(ctx *gin.Context) {
+	HandleResponse(ctx, t_http.Response{
+		Code:    http.StatusOK,
+		Message: "success",
 	})
 }
