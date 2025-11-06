@@ -20,8 +20,13 @@ type (
 	Doc struct {
 		Summary     string
 		Description string
-		Accept      string
+		Tag         string
 		Produce     string
+		Accept      string
+		Param       []string
+		Success     string
+		Failure     string
+		Router      string
 	}
 	Method struct {
 		Method string

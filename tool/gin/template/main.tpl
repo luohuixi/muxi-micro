@@ -2,13 +2,24 @@
 package main
 
 import (
-	"{{.Project}}/router"
+	"github.com/gin-gonic/gin"
 )
 
+type App struct {
+	g *gin.Engine
+}
+
+func NewApp(g *gin.Engine) *App {
+	return &App{g: g}
+}
+
+func (a *App) Run() {
+	a.g.Run("0.0.0.0:8080")
+}
+
 func main() {
-	if err := router.Run("0.0.0.0:8080"); err != nil {
-		panic(err)
-	}
+	//app := InitApp()
+	//app.Run()
 }
 
 {{- end -}}

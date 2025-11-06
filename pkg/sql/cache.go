@@ -3,9 +3,10 @@ package sql
 import (
 	"context"
 	"encoding/json"
-	"github.com/go-redis/redis"
 	"reflect"
 	"time"
+
+	"github.com/go-redis/redis"
 )
 
 const CacheNotFound = redis.Nil
@@ -16,7 +17,7 @@ type CacheExecute struct {
 	SetTTl   time.Duration //写入缓存的允许最大时长
 }
 
-func ConnectCache(addr, password string, number int, CacheTTL, SetTTL time.Duration) *CacheExecute {
+func ConnectCache(addr, password string, number int, CacheTTL, SetTTL time.Duration) (*CacheExecute, *redis.Client) {
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     addr,
 		Password: password,
@@ -27,7 +28,7 @@ func ConnectCache(addr, password string, number int, CacheTTL, SetTTL time.Durat
 		rdb,
 		CacheTTL,
 		SetTTL,
-	}
+	}, rdb
 }
 
 // cache 管理主键缓存 和 非主键向主键映射缓存

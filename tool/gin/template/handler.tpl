@@ -15,7 +15,7 @@ type {{.Name}}Handler interface {
 	{{$service.Handler}}(gin.IRouter)
 	{{- end -}}
 	{{ "\n" }}
-	RunGroup{{.Name}}(gin.IRouter, ...gin.HandlerFunc)
+	RegisterGroup{{.Name}}(gin.IRouter, ...gin.HandlerFunc)
 }
 
 type {{.PackName}}Handler struct {
@@ -28,7 +28,7 @@ func New{{.Name}}Handler(s {{.Name}}Service) {{.Name}}Handler {
 	}
 }
 
-func (h *{{.PackName}}Handler) RunGroup{{.Name}}(g gin.IRouter, middleware ...gin.HandlerFunc) {
+func (h *{{.PackName}}Handler) RegisterGroup{{.Name}}(g gin.IRouter, middleware ...gin.HandlerFunc) {
 	addr := prefix + "/" + group
 	g.Group(addr, middleware...)
 	{
@@ -41,6 +41,20 @@ func (h *{{.PackName}}Handler) RunGroup{{.Name}}(g gin.IRouter, middleware ...gi
 {{- $outer := . -}}
 {{- range $service := .Service}}
 {{ "\n" }}
+// {{$service.Handler}} {{$service.Doc.Summary}}
+// @Summary {{$service.Doc.Summary}}
+// @Description {{$service.Doc.Description}}
+// @Tags {{$service.Doc.Tag}}
+// @Accept {{$service.Doc.Accept}}
+// @Produce {{$service.Doc.Produce}}
+{{- range $param := $service.Doc.Param}}
+// @Param {{$param}}
+{{- end}}
+// @Success {{$service.Doc.Success}}
+{{- if $service.Doc.Failure}}
+// @Failure {{$service.Doc.Failure}}
+{{- end}}
+// @Router {{$service.Doc.Router}}
 func (h *{{$outer.PackName}}Handler) {{$service.Handler}}(g gin.IRouter) {
 	g.{{$service.Method.Method}}("{{$service.Method.Route}}", h.s.{{$service.Handler}})
 }

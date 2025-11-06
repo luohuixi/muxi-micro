@@ -42,5 +42,8 @@ func CreateAllService(addr, dir string, apis []*parse.Api) error {
 	if err := CreateMain(path.Join(addr, dir), dir); err != nil {
 		return err
 	}
+	if err := CreateWire(path.Join(addr, dir), dir, apis); err != nil {
+		return err
+	}
 	return nil
 }

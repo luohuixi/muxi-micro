@@ -2,6 +2,7 @@ package parse
 
 import (
 	"bufio"
+	"fmt"
 	"os"
 	"regexp"
 	"strings"
@@ -63,6 +64,8 @@ func ParesApi(addr string) (*Api, error) {
 	}
 
 	api.T = ans.String()
+	addDefaultDoc(&api)
+
 	return &api, nil
 }
 
@@ -101,8 +104,23 @@ func GetService(scanner *bufio.Scanner) []*Service {
 	var service []*Service
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
-		if CheckPrefix(line, "@handler") {
+		if CheckPrefix(line, "@doc") {
 			var s Service
+			var d Doc
+			for {
+				scanner.Scan()
+				line = scanner.Text()
+				before, after, found := strings.Cut(line, ":")
+				if !found {
+					break
+				}
+				before = strings.TrimSpace(before)
+				after = strings.Trim(strings.TrimSpace(after), "\"")
+				addDoc(&d, before, after)
+			}
+			s.Doc = &d
+			scanner.Scan()
+			line = strings.TrimSpace(scanner.Text())
 			s.Handler = strings.TrimSpace(line[len("@handler:"):])
 			scanner.Scan()
 			line = strings.TrimSpace(scanner.Text())
@@ -133,5 +151,67 @@ func parseMethod(s string) *Method {
 		Route:  StandardAddr(matches[2]),
 		Req:    matches[3],
 		Resp:   matches[4],
+	}
+}
+
+// 有点丑，看看之后怎么改
+func addDefaultDoc(api *Api) {
+	for _, s := range api.Service {
+		if s.Doc.Tag == "" {
+			s.Doc.Tag = api.ServiceName
+		}
+		if s.Doc.Success == "" {
+			s.Doc.Success = fmt.Sprintf("200 {object} %s", s.Method.Resp)
+		}
+		if s.Doc.Router == "" {
+			s.Doc.Router = fmt.Sprintf("%s/%s%s [%s]", api.Server.Prefix, api.Server.Group, s.Method.Route, s.Method.Method)
+		}
+		if s.Doc.Produce == "" {
+			s.Doc.Produce = "json"
+		}
+		if s.Doc.Accept == "" {
+			s.Doc.Accept = "json"
+		}
+		if len(s.Doc.Param) == 0 && s.Method.Req != "" {
+			s.Doc.Param = append(s.Doc.Param, fmt.Sprintf("request body %s true \"%s参数\"", s.Method.Req, s.Method.Req))
+		}
+	}
+}
+
+func addDoc(d *Doc, before string, after string) {
+	if before == "summary" {
+		d.Summary = after
+	}
+
+	if before == "description" {
+		d.Description = after
+	}
+
+	if before == "tag" {
+		d.Tag = after
+	}
+
+	if before == "produce" {
+		d.Produce = after
+	}
+
+	if before == "accept" {
+		d.Accept = after
+	}
+
+	if before == "success" {
+		d.Success = after
+	}
+
+	if before == "failure" {
+		d.Failure = after
+	}
+
+	if before == "param" {
+		d.Param = append(d.Param, after)
+	}
+
+	if before == "router" {
+		d.Router = after
 	}
 }

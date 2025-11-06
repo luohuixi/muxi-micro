@@ -39,6 +39,10 @@ service class {
     @doc (
         summary: "创建课程"
         description: "管理员创建新的课程信息。"
+        tag: "class"
+        accept: "json"
+        produce: "json"
+        success: "200 {object} CreateClassResp"
     )
     @handler CreateClass
     post /class (CreateClassReq) returns (CreateClassResp)
