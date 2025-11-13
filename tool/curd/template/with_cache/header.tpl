@@ -5,12 +5,11 @@ package {{.PackageName}}
 
 import (
     "context"
-    "errors"
     "fmt"
+
     "github.com/muxi-Infra/muxi-micro/pkg/logger"
-    "github.com/muxi-Infra/muxi-micro/pkg/sql"
+    "github.com/redis/go-redis/v9"
     "gorm.io/gorm"
-    "encoding/json"
 )
 
 const (
@@ -20,31 +19,33 @@ const (
 )
 
 type {{.ModelName}}Model interface {
-    Create(ctx context.Context, data *{{.ModelName}}) error
-    FindOne(ctx context.Context, id int64) (*{{.ModelName}}, error)
+    Create(context.Context, *{{.ModelName}}) error
+    FindOne(context.Context, int64) (*{{.ModelName}}, error)
     {{- range $notPr := .NotPrs}}
-    FindBy{{$notPr.Name}}(ctx context.Context, {{$notPr.Name}} {{$notPr.Type}}) (*[]{{$.ModelName}}, error)
+    FindBy{{$notPr.Name}}(context.Context, {{$notPr.Type}}) (*[]{{$.ModelName}}, error)
     {{- end}}
-    Update(ctx context.Context, data *{{.ModelName}}) error
-    Delete(ctx context.Context, id int64) error
+    Update(context.Context, *{{.ModelName}}) error
+    Delete(context.Context, int64) error
 }
 
 type {{.ModelName}}Exec struct {
-    exec      *sql.Execute
-    cacheExec *sql.CacheExecute
-    logger    logger.Logger
+    db     *gorm.DB
+    cache  *redis.Client
+    setTTL time.Duration
+    expiration time.Duration
+    logger logger.Logger
 }
 
-func New{{.ModelName}}Model(db *gorm.DB, cache *sql.CacheExecute, logger logger.Logger) *{{.ModelName}}Exec {
-    exec := sql.NewExecute(db)
-    return &{{.ModelName}}Exec{
-        exec:      exec,
-        cacheExec: cache,
-        logger:    logger,
-    }
+func New{{.ModelName}}Model(db *gorm.DB, cache *redis.Client, setTTL, expiration time.Duration, logger logger.Logger) *{{.ModelName}}Exec {
+	return &{{.ModelName}}Exec{
+		db:     db,
+		cache:  cache,
+		setTTL: setTTL,
+		expiration: expiration,
+		logger: logger,
+	}
 }
 
 {{template "db" $}}
 
-{{template "cache" $}}
 {{- end -}}

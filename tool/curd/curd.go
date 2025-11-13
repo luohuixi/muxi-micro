@@ -21,7 +21,7 @@ func InitCurdCobra() *cobra.Command {
 			dir, _ := cmd.Flags().GetString("dir")
 			cache, _ := cmd.Flags().GetBool("cache")
 			cover, _ := cmd.Flags().GetBool("cover")
-			transcation, _ := cmd.Flags().GetBool("transcation")
+			transaction, _ := cmd.Flags().GetBool("transaction")
 
 			modelPath := filepath.Join(dir, "model.go")
 			if _, err := os.Stat(modelPath); err != nil {
@@ -46,11 +46,11 @@ func InitCurdCobra() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				err = create.CreateVar(pkg, v.Name, dir, cache, cover)
+				err = create.CreateCache(pkg, dir, v.Name, index, cache)
 				if err != nil {
 					return err
 				}
-				err = create.CreateTranscation(pkg, dir, transcation)
+				err = create.CreateTranscation(pkg, dir, transaction)
 				if err != nil {
 					return err
 				}
@@ -63,7 +63,7 @@ func InitCurdCobra() *cobra.Command {
 	curdCmd.Flags().String("dir", ".", "model文件以及文件生成目录")
 	curdCmd.Flags().Bool("cache", false, "是否开启缓存")
 	curdCmd.Flags().Bool("cover", false, "是否覆盖除 _gen.go 外的另外两个文件")
-	curdCmd.Flags().Bool("transcation", false, "是否生成事务代码")
+	curdCmd.Flags().Bool("transaction", false, "是否生成事务代码")
 
 	return curdCmd
 }

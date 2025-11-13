@@ -5,28 +5,26 @@ package {{.PackageName}}
 
 import (
     "context"
-    "github.com/muxi-Infra/muxi-micro/pkg/sql"
     "gorm.io/gorm"
 )
 
 type {{.ModelName}}Model interface {
-    Create(ctx context.Context, data *{{.ModelName}}) error
-    FindOne(ctx context.Context, id int64) (*{{.ModelName}}, error)
+    Create(context.Context, *{{.ModelName}}) error
+    FindOne(context.Context, int64) (*{{.ModelName}}, error)
     {{- range $notPr := .NotPrs}}
-    FindBy{{$notPr.Name}}(ctx context.Context, {{$notPr.Name}} {{$notPr.Type}}) (*[]{{$.ModelName}}, error)
+    FindBy{{$notPr.Name}}(context.Context, {{$notPr.Type}}) (*[]{{$.ModelName}}, error)
     {{- end}}
-    Update(ctx context.Context, data *{{.ModelName}}) error
-    Delete(ctx context.Context, id int64) error
+    Update(context.Context, *{{.ModelName}}) error
+    Delete(context.Context, int64) error
 }
 
 type {{.ModelName}}Exec struct {
-    exec      *sql.Execute
+    db *gorm.DB
 }
 
 func New{{.ModelName}}Model(db *gorm.DB) *{{.ModelName}}Exec {
-    exec := sql.NewExecute(db)
-    return &{{.ModelName}}Exec{
-        exec:      exec,
+    return &{{.ModelName}}Exec {
+    	db: db,
     }
 }
 

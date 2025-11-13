@@ -8,46 +8,8 @@ import (
 	"unicode"
 
 	"github.com/muxi-Infra/muxi-micro/tool/curd/parse"
+	"gorm.io/gorm/schema"
 )
-
-func CreateVar(pkg, table, dir string, open, cover bool) error {
-	if cover == false && !CheckExist(dir, "var.go") {
-		return nil
-	}
-	var tmplPath string
-	if open {
-		tmplPath = filepath.Join("curd", "template", "with_cache", "var.tpl")
-	} else {
-		tmplPath = filepath.Join("curd", "template", "no_cache", "var.tpl")
-	}
-
-	t, err := template.New("var").ParseFiles(tmplPath)
-	if err != nil {
-		return err
-	}
-
-	outputPath := filepath.Join(dir, "var.go")
-	file, err := os.Create(outputPath)
-	if err != nil {
-		return err
-	}
-
-	defer file.Close()
-
-	data := struct {
-		PackageName string
-		ModelName   string
-	}{
-		PackageName: pkg,
-		ModelName:   table,
-	}
-
-	if err := t.ExecuteTemplate(file, "var", data); err != nil {
-		return err
-	}
-
-	return nil
-}
 
 func CreateExample(pkg, dir, table string, open, cover bool) error {
 	if cover == false && !CheckExist(dir, safeFilename(table)+"model.go") {
@@ -116,21 +78,65 @@ func CreateExample_gen(pkg, dir, table string, fields []parse.FieldInfo, open bo
 
 	defer file.Close()
 
+	gormNames := gormName(fields)
+
 	data := struct {
 		PackageName string
 		ModelName   string
 		Fields      []parse.FieldInfo
 		NotPrs      []parse.FieldInfo
 		Pr          string
+		GNotPrs     []string
+		GPr         string
 	}{
 		PackageName: pkg,
 		ModelName:   table,
 		Fields:      fields,
 		NotPrs:      fields[:len(fields)-1],
 		Pr:          fields[len(fields)-1].Name,
+		GNotPrs:     gormNames[:len(gormNames)-1],
+		GPr:         gormNames[len(gormNames)-1],
 	}
 
 	if err := t.ExecuteTemplate(file, "header", data); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func CreateCache(pkg, dir, table string, fields []parse.FieldInfo, open bool) error {
+	if !open {
+		return nil
+	}
+	tmplPath := filepath.Join("curd", "template", "with_cache", "cache.tpl")
+
+	t, err := template.New("cache").ParseFiles(tmplPath)
+	if err != nil {
+		return err
+	}
+
+	outputPath := filepath.Join(dir, safeFilename(table)+"cache.go")
+	file, err := os.Create(outputPath)
+	if err != nil {
+		return err
+	}
+
+	defer file.Close()
+
+	data := struct {
+		PackageName string
+		ModelName   string
+		NotPrs      []parse.FieldInfo
+		Pr          string
+	}{
+		PackageName: pkg,
+		ModelName:   table,
+		NotPrs:      fields[:len(fields)-1],
+		Pr:          fields[len(fields)-1].Name,
+	}
+
+	if err := t.ExecuteTemplate(file, "cache", data); err != nil {
 		return err
 	}
 
@@ -184,4 +190,16 @@ func CheckExist(dir, filename string) bool {
 		return true
 	}
 	return false
+}
+
+// 自动迁移特殊字段处理
+func gormName(f []parse.FieldInfo) []string {
+	var gormNames []string
+	namingStrategy := schema.NamingStrategy{}
+
+	for _, fi := range f {
+		gormNames = append(gormNames, namingStrategy.ColumnName("", fi.Name))
+	}
+
+	return gormNames
 }

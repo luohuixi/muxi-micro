@@ -2,9 +2,11 @@
 package {{.PackageName}}
 
 import (
-	"github.com/muxi-Infra/muxi-micro/pkg/sql"
-	"gorm.io/gorm"
-	"github.com/go-redis/redis"
+    "time"
+
+	"github.com/muxi-Infra/muxi-micro/pkg/logger"
+    "github.com/redis/go-redis/v9"
+    "gorm.io/gorm"
 )
 
 var _ {{.ModelName}}Models = (*Extra{{.ModelName}}Exec)(nil)
@@ -16,23 +18,21 @@ type {{.ModelName}}Models interface {
 
 type Extra{{.ModelName}}Exec struct {
 	*{{.ModelName}}Exec
-	db  *gorm.DB
-	rdb *redis.Client
+	db    *gorm.DB
+	cache *redis.Client
 }
 
-func New{{.ModelName}}Models(DBdsn string, Cache *CacheStruct) ({{.ModelName}}Models, error) {
-	db, err := sql.ConnectDB(DBdsn, {{.ModelName}}{})
-	if err != nil {
+func New{{.ModelName}}Models(db *gorm.DB, cache *redis.Client, setTTL, expiration time.Duration, l logger.Logger) ({{.ModelName}}Models, error) {
+	if err := db.AutoMigrate({{.ModelName}}{}); err != nil {
 		return nil, err
 	}
-	cache, rdb := sql.ConnectCache(Cache.RedisAddr, Cache.RedisPassword, Cache.Number, Cache.TtlForCache, Cache.TtlForSet)
 
-	instance := New{{.ModelName}}Model(db, cache, Cache.Log)
+	instance := New{{.ModelName}}Model(db, cache, setTTL, expiration, l)
 
 	return &Extra{{.ModelName}}Exec{
 		instance,
 		db,
-		rdb,
+		cache,
 	}, nil
 }
 
