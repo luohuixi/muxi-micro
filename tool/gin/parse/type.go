@@ -13,21 +13,11 @@ type (
 		Group  string
 	}
 	Service struct {
-		Doc     *Doc
+		Doc     Doc
 		Handler string
 		Method  *Method
 	}
-	Doc struct {
-		Summary     string
-		Description string
-		Tag         string
-		Produce     string
-		Accept      string
-		Param       []string
-		Success     string
-		Failure     string
-		Router      string
-	}
+	Doc    map[string][]string
 	Method struct {
 		Method string
 		Route  string

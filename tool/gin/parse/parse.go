@@ -107,6 +107,7 @@ func GetService(scanner *bufio.Scanner) []*Service {
 		if CheckPrefix(line, "@doc") {
 			var s Service
 			var d Doc
+			d = make(map[string][]string)
 			for {
 				scanner.Scan()
 				line = scanner.Text()
@@ -116,9 +117,9 @@ func GetService(scanner *bufio.Scanner) []*Service {
 				}
 				before = strings.TrimSpace(before)
 				after = strings.Trim(strings.TrimSpace(after), "\"")
-				addDoc(&d, before, after)
+				d[before] = append(d[before], after)
 			}
-			s.Doc = &d
+			s.Doc = d
 			scanner.Scan()
 			line = strings.TrimSpace(scanner.Text())
 			s.Handler = strings.TrimSpace(line[len("@handler:"):])
@@ -154,64 +155,25 @@ func parseMethod(s string) *Method {
 	}
 }
 
-// 有点丑，看看之后怎么改
 func addDefaultDoc(api *Api) {
 	for _, s := range api.Service {
-		if s.Doc.Tag == "" {
-			s.Doc.Tag = api.ServiceName
+		if _, ok := s.Doc["tag"]; !ok {
+			s.Doc["tag"] = []string{api.ServiceName}
 		}
-		if s.Doc.Success == "" {
-			s.Doc.Success = fmt.Sprintf("200 {object} %s", s.Method.Resp)
+		if _, ok := s.Doc["success"]; !ok {
+			s.Doc["success"] = []string{fmt.Sprintf("200 {object} %s", s.Method.Resp)}
 		}
-		if s.Doc.Router == "" {
-			s.Doc.Router = fmt.Sprintf("%s/%s%s [%s]", api.Server.Prefix, api.Server.Group, s.Method.Route, s.Method.Method)
+		if _, ok := s.Doc["router"]; !ok {
+			s.Doc["router"] = []string{fmt.Sprintf("%s/%s%s [%s]", api.Server.Prefix, api.Server.Group, s.Method.Route, s.Method.Method)}
 		}
-		if s.Doc.Produce == "" {
-			s.Doc.Produce = "json"
+		if _, ok := s.Doc["produce"]; !ok {
+			s.Doc["produce"] = []string{"json"}
 		}
-		if s.Doc.Accept == "" {
-			s.Doc.Accept = "json"
+		if _, ok := s.Doc["accept"]; !ok {
+			s.Doc["accept"] = []string{"json"}
 		}
-		if len(s.Doc.Param) == 0 && s.Method.Req != "" {
-			s.Doc.Param = append(s.Doc.Param, fmt.Sprintf("request body %s true \"%s参数\"", s.Method.Req, s.Method.Req))
+		if _, ok := s.Doc["param"]; !ok && s.Method.Req != "" {
+			s.Doc["param"] = []string{fmt.Sprintf("request body %s true \"%s参数\"", s.Method.Req, s.Method.Req)}
 		}
-	}
-}
-
-func addDoc(d *Doc, before string, after string) {
-	if before == "summary" {
-		d.Summary = after
-	}
-
-	if before == "description" {
-		d.Description = after
-	}
-
-	if before == "tag" {
-		d.Tag = after
-	}
-
-	if before == "produce" {
-		d.Produce = after
-	}
-
-	if before == "accept" {
-		d.Accept = after
-	}
-
-	if before == "success" {
-		d.Success = after
-	}
-
-	if before == "failure" {
-		d.Failure = after
-	}
-
-	if before == "param" {
-		d.Param = append(d.Param, after)
-	}
-
-	if before == "router" {
-		d.Router = after
 	}
 }

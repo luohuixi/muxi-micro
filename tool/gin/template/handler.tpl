@@ -41,20 +41,34 @@ func (h *{{.PackName}}Handler) RegisterGroup{{.Name}}(g gin.IRouter, middleware 
 {{- $outer := . -}}
 {{- range $service := .Service}}
 {{ "\n" }}
-// {{$service.Handler}} {{$service.Doc.Summary}}
-// @Summary {{$service.Doc.Summary}}
-// @Description {{$service.Doc.Description}}
-// @Tags {{$service.Doc.Tag}}
-// @Accept {{$service.Doc.Accept}}
-// @Produce {{$service.Doc.Produce}}
-{{- range $param := $service.Doc.Param}}
+// {{$service.Handler}} {{index $service.Doc "summary" 0}}
+{{- range $summary := index $service.Doc "summary"}}
+// @Summary {{$summary}}
+{{- end}}
+{{- range $description := index $service.Doc "description"}}
+// @Description {{$description}}
+{{- end}}
+{{- range $tag := index $service.Doc "tag"}}
+// @Tags {{$tag}}
+{{- end}}
+{{- range $accept := index $service.Doc "accept"}}
+// @Accept {{$accept}}
+{{- end}}
+{{- range $produce := index $service.Doc "produce"}}
+// @Produce {{$produce}}
+{{- end}}
+{{- range $param := index $service.Doc "param"}}
 // @Param {{$param}}
 {{- end}}
-// @Success {{$service.Doc.Success}}
-{{- if $service.Doc.Failure}}
-// @Failure {{$service.Doc.Failure}}
+{{- range $success := index $service.Doc "success"}}
+// @Success {{$success}}
 {{- end}}
-// @Router {{$service.Doc.Router}}
+{{- range $failure := index $service.Doc "failure"}}
+// @Failure {{$failure}}
+{{- end}}
+{{- range $router := index $service.Doc "router"}}
+// @Router {{$router}}
+{{- end}}
 func (h *{{$outer.PackName}}Handler) {{$service.Handler}}(g gin.IRouter) {
 	g.{{$service.Method.Method}}("{{$service.Method.Route}}", h.s.{{$service.Handler}})
 }
