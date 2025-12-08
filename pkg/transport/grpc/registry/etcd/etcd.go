@@ -3,11 +3,12 @@ package etcd
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/muxi-Infra/muxi-micro/pkg/logger"
 	"github.com/muxi-Infra/muxi-micro/pkg/logger/logx"
 	"github.com/muxi-Infra/muxi-micro/pkg/transport/grpc/registry"
 	clientv3 "go.etcd.io/etcd/client/v3"
-	"time"
 )
 
 type EtcdRegistry struct {
@@ -17,9 +18,23 @@ type EtcdRegistry struct {
 	dialTimeout time.Duration
 	leaseTTL    int64
 	namespace   string
+	username    string
+	password    string
 }
 
 type Option func(*EtcdRegistry)
+
+func WithUsername(username string) Option {
+	return func(r *EtcdRegistry) {
+		r.username = username
+	}
+}
+
+func WithPassword(password string) Option {
+	return func(r *EtcdRegistry) {
+		r.password = password
+	}
+}
 
 func WithEndpoints(endpoints []string) Option {
 	return func(r *EtcdRegistry) {
@@ -59,6 +74,8 @@ func NewEtcdRegistry(opts ...Option) (*EtcdRegistry, error) {
 		leaseTTL:    10,
 		namespace:   "/services",
 		logger:      logx.NewStdLogger(),
+		username:    "root",
+		password:    "12345678",
 	}
 
 	for _, opt := range opts {
@@ -68,6 +85,8 @@ func NewEtcdRegistry(opts ...Option) (*EtcdRegistry, error) {
 	cli, err := clientv3.New(clientv3.Config{
 		Endpoints:   r.endpoints,
 		DialTimeout: r.dialTimeout,
+		Username:    r.username,
+		Password:    r.password,
 	})
 	if err != nil {
 		return nil, err
@@ -77,7 +96,7 @@ func NewEtcdRegistry(opts ...Option) (*EtcdRegistry, error) {
 }
 
 // ===== 核心方法 =====
-func (r *EtcdRegistry) Register(ctx context.Context, serviceName, port string) error {
+func (r *EtcdRegistry) Register(ctx context.Context, serviceName, _, port string) error {
 	host, err := registry.GetLocalIP()
 	if err != nil {
 		return err

@@ -65,8 +65,8 @@ func NewEngine(opts ...EngineOption) *gin.Engine {
 	}
 
 	cfg.g.Use(
-		log.GlobalLoggerMiddleware(cfg.l),
 		log.GlobalNameMiddleware(cfg.name),
+		log.GlobalLoggerMiddleware(cfg.l),
 	)
 
 	return cfg.g

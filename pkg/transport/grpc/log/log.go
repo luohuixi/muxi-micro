@@ -8,14 +8,14 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/muxi-Infra/muxi-micro/pkg/logger"
+	"google.golang.org/grpc"
 )
 
 const (
-	LogIDKey     = "Gin-LogID"
-	LoggerKey    = "Gin-Logger"
-	NameKey      = "Gin-Name"
+	LogIDKey     = "Micro-LogID"
+	LoggerKey    = "Micro-Logger"
+	NameKey      = "Micro-Name"
 	DefaultName  = "unknown"
 	DefaultLogID = "without logID"
 )
@@ -40,8 +40,8 @@ func genLogID(prefix string) string {
 }
 
 // 设置到响应中需要
-func SetLogID(ctx *gin.Context, logID string) {
-	ctx.Set(LogIDKey, logID)
+func SetLogID(ctx context.Context, logID string) context.Context {
+	return context.WithValue(ctx, LogIDKey, logID)
 }
 
 // 为了保证获取的便利性这里用的是context.Context
@@ -54,8 +54,8 @@ func GetLogID(ctx context.Context) string {
 }
 
 // 用于设置在上下文中获取携带了特殊信息的日志,主动打印需要
-func SetLogger(ctx *gin.Context, logger logger.Logger) {
-	ctx.Set(LoggerKey, logger)
+func SetLogger(ctx context.Context, logger logger.Logger) context.Context {
+	return context.WithValue(ctx, LoggerKey, logger)
 }
 
 // 用于获取在上下文中获取携带了特殊信息的日志
@@ -67,26 +67,39 @@ func GetLogger(ctx context.Context) logger.Logger {
 	return ginLogger
 }
 
-func GlobalLoggerMiddleware(l logger.Logger) gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-		logID := ctx.Request.Header.Get("X-Request-ID")
-		if logID == "" {
-			logID = genLogID(GetGlobalName(ctx)) // 如果不存在则尝试去生成一个
+func GlobalLoggerServerInterceptor(l logger.Logger) grpc.UnaryServerInterceptor {
+	return func(
+		ctx context.Context,
+		req interface{},
+		info *grpc.UnaryServerInfo,
+		handler grpc.UnaryHandler,
+	) (interface{}, error) {
+		logID := GetLogID(ctx)
+
+		if logID == DefaultLogID {
+			logID = genLogID(GetGlobalName(ctx))
 		}
 
-		SetLogID(ctx, logID)
-		l = l.With(logger.Field{
-			"logID": logID, // 保证ctx中的所有日志都是自带logID的
-		})
-		SetLogger(ctx, l)
-		ctx.Next()
+		newCtx := SetLogID(ctx, logID)
+		l = l.With(
+			logger.Field{"logID": logID},
+		)
+
+		newCtx2 := SetLogger(newCtx, l)
+
+		return handler(newCtx2, req)
 	}
 }
 
-func GlobalNameMiddleware(name string) gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-		ctx.Set(NameKey, name)
-		ctx.Next()
+func GlobalNameServerInterceptor(name string) grpc.UnaryServerInterceptor {
+	return func(
+		ctx context.Context,
+		req interface{},
+		info *grpc.UnaryServerInfo,
+		handler grpc.UnaryHandler,
+	) (interface{}, error) {
+		newCtx := context.WithValue(ctx, NameKey, name)
+		return handler(newCtx, req)
 	}
 }
 
