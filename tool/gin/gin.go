@@ -29,14 +29,13 @@ func InitGinCobra() *cobra.Command {
 		Use:   "all",
 		Short: "根据所有的api直接生成整个gin框架",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, _ := cmd.Flags().GetString("api")
+			addr, _ := cmd.Flags().GetString("apis")
 			output, _ := cmd.Flags().GetString("output")
-			dir, _ := cmd.Flags().GetString("dir")
-			apis, err := create.CreateDocument(output, dir, addr)
+			apis, err := create.CreateDocument(output, addr)
 			if err != nil {
 				return err
 			}
-			if err := create.CreateAllService(output, dir, apis); err != nil {
+			if err := create.CreateAllService(output, apis); err != nil {
 				return err
 			}
 			return nil
@@ -45,7 +44,7 @@ func InitGinCobra() *cobra.Command {
 
 	var ginApiCmd = &cobra.Command{
 		Use:   "api",
-		Short: "给一个api文件的示例, 就不用记住格式了",
+		Short: "给一个api文件的示例用作格式参考",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			output, _ := cmd.Flags().GetString("output")
 			if err := create.CreateApi(output); err != nil {
@@ -55,12 +54,11 @@ func InitGinCobra() *cobra.Command {
 		},
 	}
 
-	ginCmd.Flags().String("api", ".", "api文件的位置")
+	ginCmd.Flags().String("api", "./example.api", "api文件的位置")
 	ginCmd.Flags().String("output", ".", "输出路径")
 
-	ginAllCmd.Flags().String("api", ".", "存放所有api文件的目录")
+	ginAllCmd.Flags().String("apis", ".", "存放所有api文件的目录")
 	ginAllCmd.Flags().String("output", ".", "输出路径")
-	ginAllCmd.Flags().String("dir", "gin", "文件夹名称")
 
 	ginApiCmd.Flags().String("output", ".", "输出路径")
 

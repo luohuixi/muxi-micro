@@ -20,7 +20,10 @@ func ParseAll(sourceDir string) ([]*Api, error) {
 	for _, file := range files {
 		if !file.IsDir() && strings.HasSuffix(file.Name(), ".api") {
 			// 肯定存在
-			api, _ := ParesApi(path.Join(sourceDir, file.Name()))
+			api, err := ParesApi(path.Join(sourceDir, file.Name()))
+			if err != nil {
+				return nil, err
+			}
 			apis = append(apis, api)
 		}
 	}

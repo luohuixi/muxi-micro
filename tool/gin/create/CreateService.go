@@ -45,6 +45,7 @@ func Create2Service(addr, pkg string, service []*parse.Service) error {
 	return nil
 }
 
+// 字符串首字母大写
 func maxFirstLetter(s string) string {
 	if len(s) == 0 {
 		return s

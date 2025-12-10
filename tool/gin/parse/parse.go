@@ -50,6 +50,10 @@ func ParesApi(addr string) (*Api, error) {
 
 		// 提取server
 		if CheckPrefix(line, "@server") {
+			// 规定一个api文件只能有一个@server
+			if api.Server != nil {
+				return nil, fmt.Errorf("one api file can only have one @server")
+			}
 			api.Server = GetServer(scanner)
 		}
 
@@ -109,8 +113,7 @@ func GetService(scanner *bufio.Scanner) []*Service {
 			var d Doc
 			d = make(map[string][]string)
 			for {
-				scanner.Scan()
-				line = scanner.Text()
+				line = Scan(scanner)
 				before, after, found := strings.Cut(line, ":")
 				if !found {
 					break
@@ -120,13 +123,14 @@ func GetService(scanner *bufio.Scanner) []*Service {
 				d[before] = append(d[before], after)
 			}
 			s.Doc = d
-			scanner.Scan()
-			line = strings.TrimSpace(scanner.Text())
+			line = Scan(scanner)
 			s.Handler = strings.TrimSpace(line[len("@handler:"):])
-			scanner.Scan()
-			line = strings.TrimSpace(scanner.Text())
+			line = Scan(scanner)
 			s.Method = parseMethod(line)
 			service = append(service, &s)
+		}
+		if CheckPrefix(line, "}") {
+			break
 		}
 	}
 	return service
@@ -176,4 +180,14 @@ func addDefaultDoc(api *Api) {
 			s.Doc["param"] = []string{fmt.Sprintf("request body %s true \"%s参数\"", s.Method.Req, s.Method.Req)}
 		}
 	}
+}
+
+func Scan(scanner *bufio.Scanner) string {
+	for {
+		scanner.Scan()
+		if scanner.Text() != "" {
+			break
+		}
+	}
+	return strings.TrimSpace(scanner.Text())
 }

@@ -8,14 +8,11 @@ import (
 )
 
 // 已存在就不覆盖
-func CreateDocument(output, dir, addr string) ([]*parse.Api, error) {
-	dir = path.Join(output, dir)
+func CreateDocument(output, addr string) ([]*parse.Api, error) {
 	dirs := []string{
-		dir,
-		path.Join(dir, "api"),
-		path.Join(dir, "handler"),
-		path.Join(dir, "router"),
-		path.Join(dir, "router", "middleware"),
+		output,
+		path.Join(output, "handler"),
+		path.Join(output, "router"),
 	}
 
 	for _, d := range dirs {
@@ -24,10 +21,6 @@ func CreateDocument(output, dir, addr string) ([]*parse.Api, error) {
 				return nil, err
 			}
 		}
-	}
-
-	if err := CopyAllApi(addr, path.Join(dir, "api")); err != nil {
-		return nil, err
 	}
 
 	apis, err := parse.ParseAll(addr)
