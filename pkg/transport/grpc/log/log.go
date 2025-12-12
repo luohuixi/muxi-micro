@@ -2,11 +2,6 @@ package log
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/sha1"
-	"encoding/hex"
-	"fmt"
-	"time"
 
 	"github.com/muxi-Infra/muxi-micro/pkg/logger"
 	"google.golang.org/grpc"
@@ -15,34 +10,8 @@ import (
 const (
 	LogIDKey     = "Micro-LogID"
 	LoggerKey    = "Micro-Logger"
-	NameKey      = "Micro-Name"
-	DefaultName  = "unknown"
 	DefaultLogID = "without logID"
 )
-
-// 生成日志 ID
-func genLogID(prefix string) string {
-	// 当前时间纳秒 + 随机字节混合
-	timeBytes := []byte(fmt.Sprintf("%d", time.Now().UnixNano()))
-
-	//生成随机短id
-	b := make([]byte, 8)
-	_, _ = rand.Read(b)
-	randomBytes := hex.EncodeToString(b)
-	combined := append(timeBytes, randomBytes...)
-
-	// SHA1 哈希处理
-	hash := sha1.Sum(combined)
-	shortHash := hex.EncodeToString(hash[:8]) // 取前8字节（16个字符）
-
-	logID := fmt.Sprintf("%s-%s", prefix, shortHash)
-	return logID
-}
-
-// 设置到响应中需要
-func SetLogID(ctx context.Context, logID string) context.Context {
-	return context.WithValue(ctx, LogIDKey, logID)
-}
 
 // 为了保证获取的便利性这里用的是context.Context
 func GetLogID(ctx context.Context) string {
@@ -75,38 +44,11 @@ func GlobalLoggerServerInterceptor(l logger.Logger) grpc.UnaryServerInterceptor 
 		handler grpc.UnaryHandler,
 	) (interface{}, error) {
 		logID := GetLogID(ctx)
-
-		if logID == DefaultLogID {
-			logID = genLogID(GetGlobalName(ctx))
-		}
-
-		newCtx := SetLogID(ctx, logID)
 		l = l.With(
 			logger.Field{"logID": logID},
 		)
 
-		newCtx2 := SetLogger(newCtx, l)
-
-		return handler(newCtx2, req)
-	}
-}
-
-func GlobalNameServerInterceptor(name string) grpc.UnaryServerInterceptor {
-	return func(
-		ctx context.Context,
-		req interface{},
-		info *grpc.UnaryServerInfo,
-		handler grpc.UnaryHandler,
-	) (interface{}, error) {
-		newCtx := context.WithValue(ctx, NameKey, name)
+		newCtx := SetLogger(ctx, l)
 		return handler(newCtx, req)
 	}
-}
-
-func GetGlobalName(ctx context.Context) string {
-	value, ok := ctx.Value(NameKey).(string)
-	if !ok {
-		return DefaultName
-	}
-	return value
 }

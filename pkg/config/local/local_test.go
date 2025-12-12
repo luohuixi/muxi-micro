@@ -1,4 +1,4 @@
-package config
+package local
 
 import (
 	"os"
@@ -43,9 +43,8 @@ func TestLoadFromLocal(t *testing.T) {
 		_, _ = tmpFile.WriteString(YAMLTEST)
 		tmpFile.Close()
 
-		cfg, _ := NewLocalConfig(&Config{}, tmpFile.Name())
-		_ = cfg.LoadData()
-		assert.Equal(t, "127.0.0.1", cfg.GetData().(*Config).Database.MySQL.Host)
+		cfg, _ := LoadLocalConfig[Config](tmpFile.Name())
+		assert.Equal(t, "127.0.0.1", cfg.GetData().Database.MySQL.Host)
 	})
 
 	t.Run("not correct type", func(t *testing.T) {
@@ -54,16 +53,12 @@ func TestLoadFromLocal(t *testing.T) {
 		_, _ = tmpFile.WriteString(YAMLTEST)
 		tmpFile.Close()
 
-		cfg, _ := NewLocalConfig(&Config{}, tmpFile.Name())
-		err := cfg.LoadData()
+		_, err := LoadLocalConfig[Config](tmpFile.Name())
 		assert.EqualError(t, err, "only .yaml, .yml, or .json are supported")
 	})
 
 	t.Run("file not exist", func(t *testing.T) {
-		cfg, _ := NewLocalConfig(&Config{}, "nonexistent.yaml")
-		err := cfg.LoadData()
+		_, err := LoadLocalConfig[Config]("nonexistent.yaml")
 		assert.Error(t, err)
 	})
-
-	//nacos不好测
 }

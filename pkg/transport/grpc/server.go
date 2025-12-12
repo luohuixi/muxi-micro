@@ -91,7 +91,6 @@ func NewGRPCServer(opts ...Option) *GRPCServer {
 	}
 
 	interceptor := []grpc.UnaryServerInterceptor{
-		grpclog.GlobalNameServerInterceptor(s.name),
 		grpclog.GlobalLoggerServerInterceptor(s.l),
 	}
 	interceptor = append(interceptor, s.interceptors...)

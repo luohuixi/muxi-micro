@@ -1,10 +1,9 @@
 package micro
 
 import (
+	pb "github.com/muxi-Infra/muxi-micro/example/transport/grpc/proto"
 	"github.com/muxi-Infra/muxi-micro/pkg/transport/grpc"
 	"github.com/muxi-Infra/muxi-micro/pkg/transport/grpc/discovery/etcd"
-
-	pb "github.com/muxi-Infra/muxi-micro/tool/micro/proto"
 )
 
 // 和proto一起生成的客户端模板的大致形式

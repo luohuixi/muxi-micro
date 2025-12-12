@@ -78,8 +78,8 @@ func NewEtcdDiscovery(opts ...Option) (*EtcdDiscovery, error) {
 		dialTimeout:        5 * time.Second,
 		namespace:          "/services",
 		logger:             logx.NewStdLogger(),
-		username:           "root",
-		password:           "12345678",
+		username:           "",
+		password:           "",
 		watchEventChanSize: 10,
 	}
 

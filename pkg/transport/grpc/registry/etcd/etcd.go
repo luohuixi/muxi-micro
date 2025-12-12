@@ -22,60 +22,60 @@ type EtcdRegistry struct {
 	password    string
 }
 
-type Option func(*EtcdRegistry)
+type ServerOption func(*EtcdRegistry)
 
-func WithUsername(username string) Option {
+func WithUsername(username string) ServerOption {
 	return func(r *EtcdRegistry) {
 		r.username = username
 	}
 }
 
-func WithPassword(password string) Option {
+func WithPassword(password string) ServerOption {
 	return func(r *EtcdRegistry) {
 		r.password = password
 	}
 }
 
-func WithEndpoints(endpoints []string) Option {
+func WithEndpoints(endpoints []string) ServerOption {
 	return func(r *EtcdRegistry) {
 		r.endpoints = endpoints
 	}
 }
 
-func WithLogger(l logger.Logger) Option {
+func WithLogger(l logger.Logger) ServerOption {
 	return func(r *EtcdRegistry) {
 		r.logger = l
 	}
 }
 
-func WithDialTimeout(timeout time.Duration) Option {
+func WithDialTimeout(timeout time.Duration) ServerOption {
 	return func(r *EtcdRegistry) {
 		r.dialTimeout = timeout
 	}
 }
 
-func WithLeaseTTL(ttl int64) Option {
+func WithLeaseTTL(ttl int64) ServerOption {
 	return func(r *EtcdRegistry) {
 		r.leaseTTL = ttl
 	}
 }
 
-func WithNamespace(ns string) Option {
+func WithNamespace(ns string) ServerOption {
 	return func(r *EtcdRegistry) {
 		r.namespace = ns
 	}
 }
 
 // ===== 构造函数 =====
-func NewEtcdRegistry(opts ...Option) (*EtcdRegistry, error) {
+func NewEtcdRegistry(opts ...ServerOption) (*EtcdRegistry, error) {
 	r := &EtcdRegistry{
 		endpoints:   []string{"127.0.0.1:2379"},
 		dialTimeout: 5 * time.Second,
 		leaseTTL:    10,
 		namespace:   "/services",
 		logger:      logx.NewStdLogger(),
-		username:    "root",
-		password:    "12345678",
+		username:    "",
+		password:    "",
 	}
 
 	for _, opt := range opts {
