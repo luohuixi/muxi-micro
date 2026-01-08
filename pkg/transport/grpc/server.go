@@ -34,6 +34,7 @@ func WithName(name string) Option {
 	}
 }
 
+// WithHost 设置服务主机地址, 用于服务注册，默认会使用本机内网IP
 func WithHost(host string) Option {
 	return func(s *GRPCServer) {
 		s.host = host
@@ -80,7 +81,6 @@ func WithRegistrationCenter(registrationCenter registry.RegistrationCenter) Opti
 func NewGRPCServer(opts ...Option) *GRPCServer {
 	s := &GRPCServer{
 		name:    DefaultName,
-		host:    DefaultHost,
 		port:    DefaultPort,
 		timeout: DefaultTimeout,
 		l:       logx.NewStdLogger(),
@@ -90,14 +90,15 @@ func NewGRPCServer(opts ...Option) *GRPCServer {
 		o(s)
 	}
 
-	interceptor := []grpc.UnaryServerInterceptor{
-		grpclog.GlobalLoggerServerInterceptor(s.l),
-	}
-	interceptor = append(interceptor, s.interceptors...)
+	// 优先执行全局 logger 拦截器
+	s.interceptors = append(
+		[]grpc.UnaryServerInterceptor{grpclog.GlobalLoggerServerInterceptor(s.l)},
+		s.interceptors...,
+	)
 
 	s.grpcServer = grpc.NewServer(
 		grpc.ConnectionTimeout(s.timeout),
-		grpc.ChainUnaryInterceptor(interceptor...),
+		grpc.ChainUnaryInterceptor(s.interceptors...),
 	)
 
 	return s
@@ -106,6 +107,13 @@ func NewGRPCServer(opts ...Option) *GRPCServer {
 func (s *GRPCServer) Serve(ctx context.Context) error {
 	// 注册服务到注册中心,如果有的话
 	if s.registrationCenter != nil {
+		if s.host == "" {
+			var err error
+			s.host, err = registry.GetLocalIP()
+			if err != nil {
+				return err
+			}
+		}
 		err := s.registrationCenter.Register(ctx, s.name, s.host, s.port)
 		if err != nil {
 			return err
@@ -124,4 +132,12 @@ func (s *GRPCServer) Serve(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+type registerFunc func(*grpc.Server)
+
+func (s *GRPCServer) ProtoRegister(fn ...registerFunc) {
+	for _, f := range fn {
+		f(s.grpcServer)
+	}
 }

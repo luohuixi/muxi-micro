@@ -4,7 +4,7 @@ package router
 import (
     {{- $outer := . -}}
 	{{- range $name := .Name}}
-    "{{$outer.Project}}/handler/{{$name.Min}}"
+    "YourPath/handler/{{$name.Min}}"
     {{- end}}
     "github.com/gin-gonic/gin"
 	"github.com/muxi-Infra/muxi-micro/pkg/transport/http/ginx/engine"

@@ -7,7 +7,6 @@ import (
 
 	"github.com/muxi-Infra/muxi-micro/pkg/logger"
 	"github.com/muxi-Infra/muxi-micro/pkg/logger/logx"
-	"github.com/muxi-Infra/muxi-micro/pkg/transport/grpc/registry"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
@@ -96,12 +95,7 @@ func NewEtcdRegistry(opts ...ServerOption) (*EtcdRegistry, error) {
 }
 
 // ===== 核心方法 =====
-func (r *EtcdRegistry) Register(ctx context.Context, serviceName, _, port string) error {
-	host, err := registry.GetLocalIP()
-	if err != nil {
-		return err
-	}
-
+func (r *EtcdRegistry) Register(ctx context.Context, serviceName, host, port string) error {
 	key := fmt.Sprintf("%s/%s/%s:%s", r.namespace, serviceName, host, port)
 	val := fmt.Sprintf("%s:%s", host, port)
 

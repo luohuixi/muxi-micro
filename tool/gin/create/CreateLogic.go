@@ -13,7 +13,7 @@ import (
 func CreateLogic(addr, pkg string, service []*parse.Service) error {
 	for _, s := range service {
 		dir := path.Join(addr, s.Handler+".go")
-		if _, err := os.Stat(dir); os.IsExist(err) {
+		if _, err := os.Stat(dir); err == nil {
 			continue
 		}
 		if s.Method.Req != "" {

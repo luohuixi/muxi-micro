@@ -5,6 +5,7 @@ import (
 
 	"github.com/muxi-Infra/muxi-micro/pkg/logger"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 )
 
 const (
@@ -12,6 +13,10 @@ const (
 	LoggerKey    = "Micro-Logger"
 	DefaultLogID = "without logID"
 )
+
+func SetLogID(ctx context.Context, logID string) context.Context {
+	return context.WithValue(ctx, LogIDKey, logID)
+}
 
 // 为了保证获取的便利性这里用的是context.Context
 func GetLogID(ctx context.Context) string {
@@ -43,12 +48,35 @@ func GlobalLoggerServerInterceptor(l logger.Logger) grpc.UnaryServerInterceptor 
 		info *grpc.UnaryServerInfo,
 		handler grpc.UnaryHandler,
 	) (interface{}, error) {
-		logID := GetLogID(ctx)
+		logID := DefaultLogID
+		md, ok := metadata.FromIncomingContext(ctx)
+		if ok {
+			if values := md.Get(LogIDKey); len(values) > 0 {
+				logID = values[0]
+			}
+		}
 		l = l.With(
 			logger.Field{"logID": logID},
 		)
 
-		newCtx := SetLogger(ctx, l)
+		newCtx := SetLogID(ctx, logID)
+		newCtx = SetLogger(newCtx, l)
 		return handler(newCtx, req)
+	}
+}
+
+func GlobalLoggerClientInterceptor() grpc.UnaryClientInterceptor {
+	return func(
+		ctx context.Context,
+		method string,
+		req, reply interface{},
+		cc *grpc.ClientConn,
+		invoker grpc.UnaryInvoker,
+		opts ...grpc.CallOption,
+	) error {
+		logID := GetLogID(ctx)
+
+		ctx = metadata.AppendToOutgoingContext(ctx, LogIDKey, logID)
+		return invoker(ctx, method, req, reply, cc, opts...)
 	}
 }

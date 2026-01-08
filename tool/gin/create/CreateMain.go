@@ -8,9 +8,9 @@ import (
 )
 
 // 存在不覆盖
-func CreateMain(addr, project string) error {
+func CreateMain(addr string) error {
 	dir := path.Join(addr, "main.go")
-	if _, err := os.Stat(dir); os.IsExist(err) {
+	if _, err := os.Stat(dir); err == nil {
 		return nil
 	}
 
@@ -29,13 +29,7 @@ func CreateMain(addr, project string) error {
 
 	defer file.Close()
 
-	data := struct {
-		Project string
-	}{
-		Project: project,
-	}
-
-	if err := t.ExecuteTemplate(file, "main", data); err != nil {
+	if err := t.ExecuteTemplate(file, "main", nil); err != nil {
 		return err
 	}
 

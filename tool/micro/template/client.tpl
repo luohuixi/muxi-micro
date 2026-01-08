@@ -1,13 +1,14 @@
-package micro
+{{- define "client" -}}
+
+package client
 
 import (
-	pb "github.com/muxi-Infra/muxi-micro/example/transport/grpc/proto"
+	"YourPath/{{.Path}}"
 	"github.com/muxi-Infra/muxi-micro/pkg/transport/grpc"
 	"github.com/muxi-Infra/muxi-micro/pkg/transport/grpc/discovery/etcd"
 )
 
-// 和proto一起生成的客户端模板的大致形式
-func HelloClient() (pb.HelloServiceClient, func(), error) {
+func {{.ServiceName}}Client() ({{.Pkg}}.{{.ServiceName}}Client, func(), error) {
 	center, err := etcd.NewEtcdDiscovery()
 	if err != nil {
 		return nil, nil, err
@@ -15,12 +16,14 @@ func HelloClient() (pb.HelloServiceClient, func(), error) {
 
 	client, err := grpc.NewGRPCClient(
 		grpc.WithServiceDiscovery(center),
-		grpc.WithDiscoveryName("test"),
+		grpc.WithDiscoveryName("muxi-micro-server"),
 	)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	c := pb.NewHelloServiceClient(client.Conn())
+	c := {{.Pkg}}.New{{.ServiceName}}Client(client.Conn())
 	return c, func() { _ = client.Close() }, nil
 }
+
+{{- end -}}

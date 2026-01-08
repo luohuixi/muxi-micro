@@ -9,6 +9,7 @@ import (
 	"github.com/muxi-Infra/muxi-micro/pkg/logger/logx"
 	"github.com/muxi-Infra/muxi-micro/pkg/tracer"
 	"github.com/muxi-Infra/muxi-micro/pkg/transport/grpc/discovery"
+	grpclog "github.com/muxi-Infra/muxi-micro/pkg/transport/grpc/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/resolver"
@@ -84,6 +85,11 @@ func NewGRPCClient(opts ...ClientOption) (*GRPCClient, error) {
 	for _, opt := range opts {
 		opt(client)
 	}
+
+	client.interceptors = append(
+		[]grpc.UnaryClientInterceptor{grpclog.GlobalLoggerClientInterceptor()},
+		client.interceptors...,
+	)
 
 	if client.discoveryCenter == nil {
 		conn, err := grpc.NewClient(

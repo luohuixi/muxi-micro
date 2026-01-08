@@ -15,9 +15,9 @@ type Name struct {
 }
 
 // 存在不覆盖
-func CreateRouter(addr, project string, apis []*parse.Api) error {
+func CreateRouter(addr string, apis []*parse.Api) error {
 	dir := path.Join(addr, "router.go")
-	if _, err := os.Stat(dir); os.IsExist(err) {
+	if _, err := os.Stat(dir); err == nil {
 		return nil
 	}
 
@@ -37,11 +37,9 @@ func CreateRouter(addr, project string, apis []*parse.Api) error {
 	defer file.Close()
 
 	data := struct {
-		Project string
-		Name    []*Name
+		Name []*Name
 	}{
-		Project: project,
-		Name:    MaxFirstLetter(apis),
+		Name: MaxFirstLetter(apis),
 	}
 
 	if err := t.ExecuteTemplate(file, "router", data); err != nil {

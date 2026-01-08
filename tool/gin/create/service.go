@@ -3,7 +3,6 @@ package create
 import (
 	"os"
 	"path"
-	"path/filepath"
 
 	"github.com/muxi-Infra/muxi-micro/tool/gin/parse"
 )
@@ -37,18 +36,11 @@ func CreateAllService(addr string, apis []*parse.Api) error {
 			return err
 		}
 	}
-	// 获取根目录名
-	dir := GetDirName(addr)
-	if err := CreateRouter(path.Join(addr, "router"), dir, apis); err != nil {
+	if err := CreateRouter(path.Join(addr, "router"), apis); err != nil {
 		return err
 	}
-	if err := CreateMain(addr, dir); err != nil {
+	if err := CreateMain(addr); err != nil {
 		return err
 	}
 	return nil
-}
-
-func GetDirName(addr string) string {
-	currentDir, _ := os.Getwd()
-	return filepath.Base(filepath.Join(currentDir, addr))
 }
